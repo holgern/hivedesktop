@@ -14,11 +14,11 @@ install:
     $env:COMM_HASH = $env:APPVEYOR_REPO_COMMIT.Substring(0,8)
     
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER) {
-        $env:BUILD = "steemdesktopSetup-{0}-{1}-{2}_win64.exe" -f $env:COMM_TAG, $env:COMM_HASH, $env:COMM_PY
+        $env:BUILD = "steemdesktopSetup-{0}-{1}.exe" -f $env:COMM_TAG, $env:COMM_HASH
         $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_HASH
     }
     else {
-        $env:BUILD = "steemdesktopSetup-{0}-{1}-{2}-{3}_win64.exe" -f $env:COMM_TAG, $env:COMM_COUNT, $env:COMM_HASH, $env:COMM_PY
+        $env:BUILD = "steemdesktopSetup-{0}-{1}-{2}.exe" -f $env:COMM_TAG, $env:COMM_COUNT, $env:COMM_HASH
         $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_COUNT
     }
 
