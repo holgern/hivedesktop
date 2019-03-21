@@ -112,8 +112,8 @@ class MainWindow(QMainWindow):
         self.tab2.setLayout(gridlayout2)
         
         menu = QMenu()
-        settingAction = menu.addAction("setting")
-        settingAction.triggered.connect(self.setting)
+        aboutAction = menu.addAction("about")
+        aboutAction.triggered.connect(self.about)
         exitAction = menu.addAction("exit")
         exitAction.triggered.connect(sys.exit)
         self.tray = QSystemTrayIcon()
@@ -133,9 +133,19 @@ class MainWindow(QMainWindow):
         
         self.button2.clicked.connect(self.read_account_hist)
 
-    def setting(self):
+    def about(self):
         self.dialog = QDialog()
         self.dialog.setWindowTitle("About Dialog")
+        gridlayout = QGridLayout()
+        
+        text = QLabel()
+        text.setWordWrap(True)
+        text.setText("Welcome to steemdesktop! This is the first release for testing qt5. Please vote for holger80 as witness, if you like this :).")
+        layout = QVBoxLayout()
+        layout.addWidget(text)
+        
+        gridlayout.addLayout(layout, 0, 0)
+        self.dialog.setLayout(gridlayout)    
         self.dialog.show()
 
     # Slot checkbox to save the settings
