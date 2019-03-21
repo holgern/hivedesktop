@@ -28,7 +28,7 @@ install:
       $env:APPVEYOR_REPO_BRANCH, $env:APPVEYOR_PULL_REQUEST_NUMBER
     $env:BRANCH = $env:BRANCH -replace "/#$"
 
-- cmd: set "PATH=%PYTHON%;%PYTHON%\\Scripts;%PYTHON%\\Tools\\Scripts;%PATH%"
+- cmd: set "PATH=%PYTHON%;%PYTHON%\\Scripts;%PYTHON%\\Tools\\Scripts;C:\\Users\\appveyor\\AppData\\Roaming\\Python\\Python36\\Scripts;%PATH%"
 - cmd: pip install pip -U --user
 - cmd: pip install fbs PyQt5==5.9.2 PyInstaller==3.4 beem cryptography pywin32 --user
 
