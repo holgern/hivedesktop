@@ -1,0 +1,58 @@
+# Based on https://github.com/ogrisel/python-appveyor-demo/blob/master/appveyor.yml
+version: '{build}'
+
+environment:
+  matrix:
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_ARCH: "64"
+      COMM_PY: "py36"
+
+      
+install:
+- ps: | # set env vars for versioning
+    $env:COMM_TAG = $(git describe --tags $(git rev-list --tags --max-count=1))
+    $env:COMM_COUNT = $(git rev-list --count HEAD)
+    $env:COMM_HASH = $env:APPVEYOR_REPO_COMMIT.Substring(0,8)
+    
+    if ($env:APPVEYOR_PULL_REQUEST_NUMBER) {
+        $env:BUILD = "steemdesktopSetup-{0}-{1}-{2}_win64.exe" -f $env:COMM_TAG, $env:COMM_HASH, $env:COMM_PY
+        $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_HASH
+    }
+    else {
+        $env:BUILD = "steemdesktopSetup-{0}-{1}-{2}-{3}_win64.exe" -f $env:COMM_TAG, $env:COMM_COUNT, $env:COMM_HASH, $env:COMM_PY
+        $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_COUNT
+    }
+
+- ps: | # used for experimental build warnings for pr builds
+    $env:BRANCH = "{0}/{1}/#{2}" -f $env:APPVEYOR_REPO_NAME, `
+      $env:APPVEYOR_REPO_BRANCH, $env:APPVEYOR_PULL_REQUEST_NUMBER
+    $env:BRANCH = $env:BRANCH -replace "/#$"
+
+- cmd: set "PATH=%PYTHON%;%PYTHON%\\Scripts;%PYTHON%\\Tools\\Scripts;%PATH%"
+- cmd: pip install pip -U
+- cmd: pip install fbs PyQt5==5.9.2 PyInstaller==3.4 beem cryptography pywin32
+
+
+build_script:
+ # Build the compiled extension
+- cmd: fbs freeze
+
+after_test:
+ # If tests are successful, create binary packages for the project.
+- cmd: fbs installer
+- cmd: copy /Y target\steemdesktopSetup.exe $env:BUILD
+- ps: | # generate sha256 hashes
+    (get-filehash $env:BUILD -algorithm SHA256).Hash | out-file ("{0}.sha256" -f $env:BUILD) -encoding ascii
+    type ("{0}.sha256" -f $env:BUILD)
+    
+
+artifacts:
+  # Archive the generated packages in the ci.appveyor.com build report.
+- path: $(BUILD)
+  name: steemdesktop
+- path: $(BUILD).sha256
+  name: steemengine sha256 hash
+
+on_finish: 
+- ps: | # update appveyor build version, done last to prevent webhook breakage
+    update-appveyorbuild -version $env:AVVER
