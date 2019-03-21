@@ -1,20 +1,10 @@
 #!/usr/bin/env bash
 COMM_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
 COMM_COUNT=$(git rev-list --count HEAD)
-BUILD="steemengine-${COMM_TAG}-${COMM_COUNT}_linux.tar.gz"
+BUILD="steemdesktop-${COMM_TAG}-${COMM_COUNT}_linux.deb"
 
+mv target/steemdesktop.deb ${BUILD}
 
-rm -rf dist build locale
-pip install 
-python setup.py clean
-python setup.py build_ext
-# python setup.py build_locales
-pip install pyinstaller
-pyinstaller steemengine-onedir.spec
-
-cd dist
-
-tar -zcvf ${BUILD} steemengine
 if [ -n "$UPLOAD_LINUX" ]
 then
     curl --upload-file ${BUILD} https://transfer.sh/

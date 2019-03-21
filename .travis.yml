@@ -39,17 +39,6 @@ script:
  - fbs freeze
  - fbs installer
 
-before_deploy:
- - PKGNAME="steemdesktop-$TRAVIS_TAG.deb"
- - mv target/steemdesktop.deb $PKGNAME
- - sha256sum $PKGNAME > $PKGNAME.sha256
-
-deploy:
-    provider: releases
-    api_key:
-        secure:  # TODO: put encrypted GitHub token here!
-    file: steemdesktop-$TRAVIS_TAG.deb
-    file_glob: true
-    skip_cleanup: true
-    on:
-        tags: true
+after_success:
+ - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then bash util/package-osx.sh; fi
+ - if [[ "$BUILD_LINUX" == "yes" ]]; then bash util/package-linux.sh; fi

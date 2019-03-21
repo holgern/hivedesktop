@@ -1,8 +1,7 @@
 #!/bin/bash
-brew update
 brew install ccache
 brew outdated openssl || brew upgrade openssl
-brew install openssl@1.1
+brew install openssl
 
 export CFLAGS="-I$(brew --prefix openssl)/include $CFLAGS"
 export LDFLAGS="-L$(brew --prefix openssl)/lib $LDFLAGS"
