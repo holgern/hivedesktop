@@ -26,8 +26,8 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then source util/travis_osx_install.sh; fi
   - ccache -s
   - which python; python --version
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then apt-get install -y ruby ruby-dev rubygems build-essential; fi
-  - if [[ "$BUILD_LINUX" == "yes" ]]; then brew install gnu-tar; fi
+  - if [[ "$BUILD_LINUX" == "yes" ]]; then apt-get install -y ruby ruby-dev rubygems build-essential; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gnu-tar; fi
   - gem install --no-ri --no-rdoc fpm
   - pip install --upgrade pip
   - pip install --upgrade wheel
