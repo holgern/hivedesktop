@@ -28,7 +28,7 @@ before_install:
   - which python; python --version
   - if [[ "$BUILD_LINUX" == "yes" ]]; then sudo apt-get install -y ruby ruby-dev build-essential; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gnu-tar; fi
-  - gem install --no-ri --no-rdoc fpm
+  - gem install --no-rdoc fpm
   - pip install --upgrade pip
   - pip install --upgrade wheel
   - pip install --upgrade setuptools
