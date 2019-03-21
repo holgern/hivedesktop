@@ -25,4 +25,5 @@ before_install:
   - pip install fbs PyQt5==5.9.2 PyInstaller==3.4 beem cryptography
 
 script:
+ - fbs freeze
  - fbs installer
