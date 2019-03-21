@@ -6,7 +6,6 @@ environment:
     - PYTHON: "C:\\Python36-x64"
       PYTHON_ARCH: "64"
       COMM_PY: "py36"
-
       
 install:
 - ps: | # set env vars for versioning
@@ -42,6 +41,7 @@ after_test:
 - cmd: fbs installer
 - cmd: ren target\steemdesktopSetup.exe $(BUILD)
 - cmd: copy target\$(BUILD) .\$(BUILD)
+- cmd: ls
 - ps: | # generate sha256 hashes
     (get-filehash $env:BUILD -algorithm SHA256).Hash | out-file ("{0}.sha256" -f $env:BUILD) -encoding ascii
     type ("{0}.sha256" -f $env:BUILD)
@@ -52,7 +52,7 @@ artifacts:
 - path: $(BUILD)
   name: steemdesktop
 - path: $(BUILD).sha256
-  name: steemengine sha256 hash
+  name: steemdesktop sha256 hash
 
 on_finish: 
 - ps: | # update appveyor build version, done last to prevent webhook breakage
