@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-VERSION=$(python -c 'import beem; print(beem.__version__)')
 COMM_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
 COMM_COUNT=$(git rev-list --count HEAD)
 BUILD="steemdesktop-${COMM_TAG}-${COMM_COUNT}_osx.dmg"
-
+echo -e $BUILD
 mv target/steemdesktop.dmg "$BUILD"
 curl --upload-file "$BUILD" https://transfer.sh/
 # Required for a newline between the outputs
