@@ -1,8 +1,3 @@
-QLabel {
-    min-width: 20em;
-    max-width: 30em;
-    min-height: 8em;
-}
 
 QPushButton {
     max-width: 10em;

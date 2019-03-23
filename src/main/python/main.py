@@ -3,12 +3,15 @@ from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QMenu, \
      QSystemTrayIcon, QDialog, QMainWindow, QGridLayout, QCheckBox, QSizePolicy, QSpacerItem, \
      QLineEdit, QTabWidget
+from ui_mainwindow import Ui_MainWindow
 from beem import Steem
 from beem.comment import Comment
 from beem.account import Account
 from beem.amount import Amount
+from beem.rc import RC
+from beem.blockchain import Blockchain
 from beem.nodelist import NodeList
-from beem.utils import addTzInfo, resolve_authorperm, construct_authorperm, derive_permlink, formatTimeString
+from beem.utils import addTzInfo, resolve_authorperm, construct_authorperm, derive_permlink, formatTimeString, formatTimedelta
 from datetime import datetime, timedelta
 import click
 import logging
@@ -35,53 +38,19 @@ class AppContext(ApplicationContext):
     def window(self):
         return MainWindow()
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
-        super().__init__()
-        self.setMinimumSize(QSize(480, 240))  # Set sizes
-        self.setWindowTitle("Steem Desktop")  # Set a title
-        central_widget = QWidget(self)  # Create a central widget
-        self.setCentralWidget(central_widget)  # Set the central widget
-        layout = QVBoxLayout()
-        central_widget.setLayout(layout)
-        # Initialize tab screen
-        self.tabs = QTabWidget()
-        self.tab1 = QWidget()
-        self.tab2 = QWidget()
-        self.tabs.resize(300,200)        
-        # Add tabs
-        self.tabs.addTab(self.tab1,"Account info")
-        self.tabs.addTab(self.tab2,"bookkeeping")
-        
-        # Add tabs to widget
-        layout.addWidget(self.tabs)
-        
-        gridlayout = QGridLayout()
-        
-        gridlayout.addWidget(QLabel("Steem account", self), 0, 0)
-        self.lineEdit = QLineEdit(self)
-        gridlayout.addWidget(self.lineEdit, 0, 1)
+        super(QMainWindow, self).__init__()
+        # Set up the user interface from Designer.
+        self.setupUi(self)
+
         
         self.timer = QTimer()
-        self.timer.timeout.connect(self.refresh)
+        self.timer.timeout.connect(self.refresh_account)
         
-        # Add a checkbox, which will depend on the behavior of the program when the window is closed
-        self.check_box = QCheckBox('Auto refresh')
-        gridlayout.addWidget(self.check_box, 1, 0)
-        gridlayout.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Expanding), 2, 0)        
-        
-        
-        self.text = QLabel()
-        self.text.setWordWrap(True)      
-        
-        self.button = QPushButton('refresh account info')
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        layout.addWidget(self.button)
-        layout.setAlignment(self.button, Qt.AlignHCenter)        
-        
-        gridlayout.addLayout(layout, 1, 1)
-        self.tab1.setLayout(gridlayout)
+        self.timer2 = QTimer()
+        self.timer2.timeout.connect(self.update_account_hist)        
+      
         # Get settings
         settings = QSettings()
         # Get checkbox state with speciying type of checkbox:
@@ -89,28 +58,15 @@ class MainWindow(QMainWindow):
         check_state = settings.value(SETTINGS_TRAY, False, type=bool)
         account_state = settings.value(SETTINGS_ACCOUNT, "holger80", type=str)
         # Set state
-        self.check_box.setChecked(check_state)
+        self.autoRefreshCheckBox.setChecked(check_state)
         if check_state:
             self.timer.start(5000)
-        self.lineEdit.setText(account_state)
+            self.timer2.start(30000)
+        self.accountLineEdit.setText(account_state)
         # connect the slot to the signal by clicking the checkbox to save the state settings
-        self.check_box.clicked.connect(self.save_check_box_settings)   
-        self.lineEdit.editingFinished.connect(self.save_account_settings)
-        
-        gridlayout2 = QGridLayout()
-        
-        self.text2 = QLabel()
-        self.text2.setWordWrap(True)      
-        self.text2.setText("Please press the button to start!")
-        self.button2 = QPushButton('Show Drugwars stats')
-        layout2 = QVBoxLayout()
-        layout2.addWidget(self.text2)
-        layout2.addWidget(self.button2)
-        layout2.setAlignment(self.button2, Qt.AlignHCenter)        
-        
-        gridlayout2.addLayout(layout2, 0, 0)
-        self.tab2.setLayout(gridlayout2)
-        
+        self.autoRefreshCheckBox.clicked.connect(self.save_check_box_settings)   
+        self.accountLineEdit.editingFinished.connect(self.save_account_settings)
+                
         menu = QMenu()
         aboutAction = menu.addAction("about")
         aboutAction.triggered.connect(self.about)
@@ -126,12 +82,14 @@ class MainWindow(QMainWindow):
         nodelist.update_nodes()
         self.stm = Steem(node=nodelist.get_nodes())
         self.hist_account = Account(account, steem_instance=self.stm)
-        self.text.setText(self.hist_account.print_info(return_str=True))
+        self.refresh_account()
+        self.update_account_hist()
         # self.button.clicked.connect(lambda: self.text.setText(_get_quote(self.hist_account, self.stm)))
-        self.button.clicked.connect(self.refresh)
-        self.lineEdit.editingFinished.connect(self.update_account_info)
+        self.refreshPushButton.clicked.connect(self.refresh_account)
+        self.refreshPushButton.clicked.connect(self.update_account_hist)
+        self.accountLineEdit.editingFinished.connect(self.update_account_info)
         
-        self.button2.clicked.connect(self.read_account_hist)
+        self.drugwarsPushButton.clicked.connect(self.read_account_hist)
 
     def about(self):
         self.dialog = QDialog()
@@ -151,30 +109,92 @@ class MainWindow(QMainWindow):
     # Slot checkbox to save the settings
     def save_check_box_settings(self):
         settings = QSettings()
-        settings.setValue(SETTINGS_TRAY, self.check_box.isChecked())
-        if self.check_box.isChecked():
+        settings.setValue(SETTINGS_TRAY, self.autoRefreshCheckBox.isChecked())
+        if self.autoRefreshCheckBox.isChecked():
             self.timer.start(5000)
+            self.timer2.start(30000)
         else:
             self.timer.stop()
+            self.timer2.stop()
         settings.sync()
 
     # Slot checkbox to save the settings
     def save_account_settings(self):
         settings = QSettings()
-        settings.setValue(SETTINGS_ACCOUNT, self.lineEdit.text())
+        settings.setValue(SETTINGS_ACCOUNT, self.accountLineEdit.text())
         settings.sync()
 
     def update_account_info(self):
-        if self.hist_account["name"] != self.lineEdit.text():
-            self.hist_account = Account(self.lineEdit.text(), steem_instance=self.stm)
-            self.text.setText(self.hist_account.print_info(return_str=True))
+        if self.hist_account["name"] != self.accountLineEdit.text():
+            self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
+            self.refresh_account()
+            self.update_account_hist()
 
-    def refresh(self):
-        self.text.setText(self.hist_account.print_info(return_str=True))
+    def refresh_account(self):
+        self.hist_account.refresh()
+        self.accountInfoGroupBox.setTitle("%s (%.3f)" % (self.hist_account["name"], self.hist_account.rep))
+        self.votePowerProgressBar.setValue(int(self.hist_account.vp))
+        self.votePowerProgressBar.setFormat("%.2f %%, full in %s" % (self.hist_account.vp, self.hist_account.get_recharge_time_str()))
+        rc_manabar = self.hist_account.get_rc_manabar()
+        self.RCProgressBar.setValue(int(rc_manabar["current_pct"]))
+        self.RCProgressBar.setFormat("%.2f %%, full in %s" % (rc_manabar["current_pct"], self.hist_account.get_manabar_recharge_time_str(rc_manabar)))
+        self.votePowerLabel.setText("Vote Power, a 100%% vote is %.3f $" % (self.hist_account.get_voting_value_SBD()))
+        rc = self.hist_account.get_rc()
+        estimated_rc = int(rc["max_rc"]) * rc_manabar["current_pct"] / 100
+        rc_calc = RC(steem_instance=self.stm)
+        self.RCLabel.setText("RC (%.0f G RC of %.0f G RC)" % (estimated_rc / 10**9, int(rc["max_rc"]) / 10**9))
+        self.STEEMLabel.setText(str(self.hist_account["balance"]))
+        self.SBDLabel.setText(str(self.hist_account["sbd_balance"]))
+        self.SPLabel.setText("%.3f SP" % self.stm.vests_to_sp(self.hist_account["vesting_shares"]))
+        
+        ret = "--- Approx Costs ---\n"
+        ret += "comment - %.2f G RC - enough RC for %d comments\n" % (rc_calc.comment() / 10**9, int(estimated_rc / rc_calc.comment()))
+        ret += "vote - %.2f G RC - enough RC for %d votes\n" % (rc_calc.vote() / 10**9, int(estimated_rc / rc_calc.vote()))
+        ret += "transfer - %.2f G RC - enough RC for %d transfers\n" % (rc_calc.transfer() / 10**9, int(estimated_rc / rc_calc.transfer()))
+        ret += "custom_json - %.2f G RC - enough RC for %d custom_json\n" % (rc_calc.custom_json() / 10**9, int(estimated_rc / rc_calc.custom_json()))
+        self.text.setText(ret)
 
+    def update_account_hist(self):
+        b = Blockchain(steem_instance=self.stm)
+        latest_block_num = b.get_current_block_num()
+        start_block_num = latest_block_num - (20 * 60 * 24)
+        votes = []
+        self.lastUpvotesListWidget.clear()
+        self.lastCurationListWidget.clear()
+        self.lastAuthorListWidget.clear()
+        daily_curation = 0
+        daily_author_SP = 0
+        daily_author_SBD = 0
+        daily_author_STEEM = 0
+        for op in self.hist_account.history_reverse(stop=start_block_num, only_ops=["vote", "curation_reward", "author_reward"]):
+            if op["type"] == "vote":
+                if op["voter"] == self.hist_account["name"]:
+                    continue
+                votes.append(op)
+                op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
+                self.lastUpvotesListWidget.addItem("%s - %s (%.2f %%) upvote %s" % (op_timedelta, op["voter"], op["weight"] / 100, op["permlink"]))
+            elif op["type"] == "curation_reward":
+                curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
+                daily_curation += curation_reward
+                op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
+                self.lastCurationListWidget.addItem("%s - %.3f SP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
+            elif op["type"] == "author_reward":
+                sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
+                steem_payout = (Amount(op["steem_payout"], steem_instance=self.stm))
+                sp_payout = self.stm.vests_to_sp(Amount(op["vesting_payout"], steem_instance=self.stm))
+                daily_author_SP += sp_payout
+                daily_author_STEEM += float(steem_payout)
+                daily_author_SBD += float(sbd_payout)
+                op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
+                self.lastAuthorListWidget.addItem("%s - %s %s %.3f SP for %s" % (op_timedelta, str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
+        reward_text = "Curation reward (last 24 h): %.3f SP\n" % daily_curation
+        reward_text += "Author reward (last 24 h):\n"
+        reward_text += "%.3f SP - %.3f STEEM - %.3f SBD" % (daily_author_SP, (daily_author_STEEM), (daily_author_SBD))
+        self.text2.setText(reward_text)
+            
     def read_account_hist(self):
         self.tray.showMessage("Please wait", "reading account history")
-        self.hist_account = Account(self.lineEdit.text(), steem_instance=self.stm)
+        self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
         transfer_hist = []
         transfer_vest_hist = []
         n = 0
@@ -185,7 +205,7 @@ class MainWindow(QMainWindow):
             elif h["type"] == "transfer_to_vesting":
                 transfer_vest_hist.append(h)      
         self.tray.showMessage("Finished", "Read %d ops from %s" % (n, self.hist_account["name"]))
-        self.text2.setText(_get_drugwars_info(transfer_hist, transfer_vest_hist, self.hist_account, self.stm))
+        self.bookkeepingLabel.setText(_get_drugwars_info(transfer_hist, transfer_vest_hist, self.hist_account, self.stm))
 
 
 def _get_drugwars_info(transfer_hist, transfer_vest_hist, hist_account, stm):
