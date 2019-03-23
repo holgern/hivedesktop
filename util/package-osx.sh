@@ -5,7 +5,7 @@
 BUILD="steemdesktop_osx.dmg"
 echo -e $BUILD
 mv target/steemdesktop.dmg "$BUILD"
-curl --upload-file "$BUILD" https://transfer.sh/
+curl --upload-file ./target/steemdesktop.dmg https://transfer.sh/steemdesktop.dmg
 # Required for a newline between the outputs
 echo -e "\n"
 md5 -r "$BUILD"
