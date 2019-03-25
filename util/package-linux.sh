@@ -5,7 +5,7 @@
 BUILD="steemdesktop_linux.deb"
 echo -e ${BUILD}
 mv target/steemdesktop.deb ./${BUILD}
-curl --upload-file ./steemdesktop_linux.deb https://transfer.sh/steemdesktop_linux.deb
+curl -T steemdesktop_linux.deb https://transfer.sh/steemdesktop_linux.deb
 # Required for a newline between the outputs
 echo -e "\n"
 md5sum  ${BUILD}
