@@ -213,16 +213,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lastCurationListWidget.clear()
         self.lastAuthorListWidget.clear()
         self.accountHistListWidget.clear()
-        last_block = 0
+        start_block = 0
         trx_ids = []
-        for op in self.hist_account.history_reverse(stop=start_block_num):
-            start_block = op["block"]
-            if op["block"] != last_block:
-                trx_ids = [op["trx_id"]]
+        for op in self.hist_account.history(start=start_block_num):
+            if op["block"] < start_block:
+                continue
+            elif op["block"] == start_block:
+                if op["trx_id"] in trx_ids:
+                    continue
+                else:
+                    trx_ids.append(op["trx_id"])
             else:
-                trx_ids.append(op["trx_id"])
+                trx_ids = [op["trx_id"]]
+            start_block = op["block"]
             self.account_history.append(op)
-            last_block = op["block"]
         self.append_hist_info["start_block"] = start_block
         self.append_hist_info["trx_ids"] = trx_ids
         
@@ -230,7 +234,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def append_account_hist(self):
         start_block = self.append_hist_info["start_block"]
         trx_ids = self.append_hist_info["trx_ids"]
-        for op in self.hist_account.history(start=start_block - 100, use_block_num=True):
+        for op in self.hist_account.history(start=start_block - 20, use_block_num=True):
             if op["block"] < start_block:
                 continue
             elif op["block"] == start_block:
@@ -242,6 +246,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 trx_ids = [op["trx_id"]]
 
             start_block = op["block"]
+            # print("Write %d" % op["index"])
             self.account_history.append(op)        
         self.append_hist_info["start_block"] = start_block
         self.append_hist_info["trx_ids"] = trx_ids
@@ -256,21 +261,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         daily_author_SP = 0
         daily_author_SBD = 0
         daily_author_STEEM = 0
-        for op in self.account_history[::-1]:
-            if op["type"] == "vote":
-                if op["voter"] == self.hist_account["name"]:
-                    continue
-                votes.append(op)
-            elif op["type"] == "curation_reward":
-                curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
-                daily_curation += curation_reward
-            elif op["type"] == "author_reward":
-                sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
-                steem_payout = (Amount(op["steem_payout"], steem_instance=self.stm))
-                sp_payout = self.stm.vests_to_sp(Amount(op["vesting_payout"], steem_instance=self.stm))
-                daily_author_SP += sp_payout
-                daily_author_STEEM += float(steem_payout)
-                daily_author_SBD += float(sbd_payout)            
+        self.append_account_hist()
+        
+        new_op_found = False
         
         start_block = self.account_hist_info["start_block"]
         if start_block == 0:
@@ -279,7 +272,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             first_call = False
         trx_ids = self.account_hist_info["trx_ids"]
      
-        for op in self.account_history[::-1]:
+        for op in self.account_history:
             if op["block"] < start_block:
                 # last_block = op["block"]
                 continue
@@ -291,10 +284,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 trx_ids = [op["trx_id"]]
             start_block = op["block"]
-
+            new_op_found = True
             op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
             op_local_time = formatTimeString(op["timestamp"]).astimezone(tz.tzlocal())
-            # print(op["index"])
+            # print("Read %d" % op["index"])
             if op["type"] == "vote":
                 if op["voter"] == self.hist_account["name"]:
                     continue
@@ -325,15 +318,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             
             if self.accountHistNotificationCheckBox.isChecked() and not first_call:
                 self.tray.showMessage(self.hist_account["name"], hist_item)
+
+        if new_op_found:
+            self.account_hist_info["start_block"] = start_block
+            self.account_hist_info["trx_ids"] = trx_ids
+            
+            for op in self.account_history:
+                if op["type"] == "vote":
+                    if op["voter"] == self.hist_account["name"]:
+                        continue
+                    votes.append(op)
+                elif op["type"] == "curation_reward":
+                    curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
+                    daily_curation += curation_reward
+                elif op["type"] == "author_reward":
+                    sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
+                    steem_payout = (Amount(op["steem_payout"], steem_instance=self.stm))
+                    sp_payout = self.stm.vests_to_sp(Amount(op["vesting_payout"], steem_instance=self.stm))
+                    daily_author_SP += sp_payout
+                    daily_author_STEEM += float(steem_payout)
+                    daily_author_SBD += float(sbd_payout)        
         
-        self.account_hist_info["start_block"] = start_block
-        self.account_hist_info["trx_ids"] = trx_ids
-    
-        self.append_account_hist()
-        reward_text = "Curation reward (last 24 h): %.3f SP\n" % daily_curation
-        reward_text += "Author reward (last 24 h):\n"
-        reward_text += "%.3f SP - %.3f STEEM - %.3f SBD" % (daily_author_SP, (daily_author_STEEM), (daily_author_SBD))
-        self.text2.setText(reward_text)
+            
+            reward_text = "Curation reward (last 24 h): %.3f SP\n" % daily_curation
+            reward_text += "Author reward (last 24 h):\n"
+            reward_text += "%.3f SP - %.3f STEEM - %.3f SBD" % (daily_author_SP, (daily_author_STEEM), (daily_author_SBD))
+            self.text2.setText(reward_text)
   
 
     def read_account_hist(self):
