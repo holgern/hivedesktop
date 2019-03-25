@@ -162,22 +162,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lastUpvotesListWidget.clear()
         self.lastCurationListWidget.clear()
         self.lastAuthorListWidget.clear()
+        self.accountHistListWidget.clear()
         daily_curation = 0
         daily_author_SP = 0
         daily_author_SBD = 0
         daily_author_STEEM = 0
-        for op in self.hist_account.history_reverse(stop=start_block_num, only_ops=["vote", "curation_reward", "author_reward"]):
+        for op in self.hist_account.history_reverse(stop=start_block_num):
+            op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
+            
             if op["type"] == "vote":
                 if op["voter"] == self.hist_account["name"]:
                     continue
                 votes.append(op)
-                op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
                 self.lastUpvotesListWidget.addItem("%s - %s (%.2f %%) upvote %s" % (op_timedelta, op["voter"], op["weight"] / 100, op["permlink"]))
+                self.accountHistListWidget.addItem("%s - %s - %s (%.2f %%) upvote %s" % (op_timedelta, op["type"], op["voter"], op["weight"] / 100, op["permlink"]))
             elif op["type"] == "curation_reward":
                 curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
                 daily_curation += curation_reward
-                op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
                 self.lastCurationListWidget.addItem("%s - %.3f SP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
+                self.accountHistListWidget.addItem("%s - %s - %.3f SP for %s" % (op_timedelta, op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
             elif op["type"] == "author_reward":
                 sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
                 steem_payout = (Amount(op["steem_payout"], steem_instance=self.stm))
@@ -185,8 +188,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 daily_author_SP += sp_payout
                 daily_author_STEEM += float(steem_payout)
                 daily_author_SBD += float(sbd_payout)
-                op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
                 self.lastAuthorListWidget.addItem("%s - %s %s %.3f SP for %s" % (op_timedelta, str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
+                self.accountHistListWidget.addItem("%s - %s - %s %s %.3f SP for %s" % (op_timedelta, op["type"], str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
+            elif op["type"] == "custom_json":
+                self.accountHistListWidget.addItem("%s - %s - %s" % (op_timedelta, op["type"], op["id"]))
+            elif op["type"] == "transfer":
+                self.accountHistListWidget.addItem("%s - %s - %s from %s" % (op_timedelta, op["type"], str(Amount(op["amount"], steem_instance=self.stm)), op["from"]))
+            else:
+                self.accountHistListWidget.addItem("%s - %s" % (op_timedelta, op["type"]))
         reward_text = "Curation reward (last 24 h): %.3f SP\n" % daily_curation
         reward_text += "Author reward (last 24 h):\n"
         reward_text += "%.3f SP - %.3f STEEM - %.3f SBD" % (daily_author_SP, (daily_author_STEEM), (daily_author_SBD))

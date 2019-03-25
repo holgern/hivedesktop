@@ -329,6 +329,16 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="tab_3">
+       <attribute name="title">
+        <string>Account history</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="0" column="0">
+         <widget class="QListWidget" name="accountHistListWidget"/>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
    </layout>
