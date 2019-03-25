@@ -1,5 +1,5 @@
 from fbs_runtime.application_context import ApplicationContext, cached_property
-from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer
+from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer, QRunnable, pyqtSlot, QThreadPool
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QMenu, \
      QSystemTrayIcon, QDialog, QMainWindow, QGridLayout, QCheckBox, QSizePolicy, QSpacerItem, \
      QLineEdit, QTabWidget
@@ -13,6 +13,7 @@ from beem.blockchain import Blockchain
 from beem.nodelist import NodeList
 from beem.utils import addTzInfo, resolve_authorperm, construct_authorperm, derive_permlink, formatTimeString, formatTimedelta
 from datetime import datetime, timedelta
+from dateutil import tz
 import click
 import logging
 import sys
@@ -26,7 +27,38 @@ ORGANIZATION_NAME = 'holger80'
 ORGANIZATION_DOMAIN = 'beempy.com'
 APPLICATION_NAME = 'Steem Desktop'
 SETTINGS_TRAY = 'settings/tray'
+SETTINGS_HIST_INFO = 'settings/hist_info'
 SETTINGS_ACCOUNT = 'settings/account'
+
+
+class Worker(QRunnable):
+    '''
+    Worker thread
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+
+    :param callback: The function callback to run on this worker thread. Supplied args and 
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+
+    '''
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+
+    @pyqtSlot()
+    def run(self):
+        '''
+        Initialise the runner function with passed args, kwargs.
+        '''
+        self.fn(*self.args, **self.kwargs)
+
 
 class AppContext(ApplicationContext):
     def run(self):
@@ -46,27 +78,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         
         self.timer = QTimer()
-        self.timer.timeout.connect(self.refresh_account)
+        self.timer.timeout.connect(self.refresh_account_thread)
         
         self.timer2 = QTimer()
-        self.timer2.timeout.connect(self.update_account_hist)        
+        self.timer2.timeout.connect(self.update_account_hist_thread)        
       
         # Get settings
         settings = QSettings()
         # Get checkbox state with speciying type of checkbox:
         # type=bool is a replacement of toBool() in PyQt5
         check_state = settings.value(SETTINGS_TRAY, False, type=bool)
+        hist_info_check_state = settings.value(SETTINGS_HIST_INFO, False, type=bool)
         account_state = settings.value(SETTINGS_ACCOUNT, "holger80", type=str)
         # Set state
+        self.accountHistNotificationCheckBox.setChecked(hist_info_check_state)
         self.autoRefreshCheckBox.setChecked(check_state)
         if check_state:
             self.timer.start(5000)
-            self.timer2.start(30000)
+            self.timer2.start(15000)
         self.accountLineEdit.setText(account_state)
         # connect the slot to the signal by clicking the checkbox to save the state settings
         self.autoRefreshCheckBox.clicked.connect(self.save_check_box_settings)   
+        self.accountHistNotificationCheckBox.clicked.connect(self.save_check_box_settings)  
         self.accountLineEdit.editingFinished.connect(self.save_account_settings)
-                
+        
+        self.threadpool = QThreadPool()
+        
         menu = QMenu()
         aboutAction = menu.addAction("about")
         aboutAction.triggered.connect(self.about)
@@ -82,11 +119,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         nodelist.update_nodes()
         self.stm = Steem(node=nodelist.get_nodes())
         self.hist_account = Account(account, steem_instance=self.stm)
-        self.refresh_account()
-        self.update_account_hist()
+        self.init_new_account()
         # self.button.clicked.connect(lambda: self.text.setText(_get_quote(self.hist_account, self.stm)))
-        self.refreshPushButton.clicked.connect(self.refresh_account)
-        self.refreshPushButton.clicked.connect(self.update_account_hist)
+        self.refreshPushButton.clicked.connect(self.refresh_account_thread)
+        self.refreshPushButton.clicked.connect(self.update_account_hist_thread)
         self.accountLineEdit.editingFinished.connect(self.update_account_info)
         
         self.drugwarsPushButton.clicked.connect(self.read_account_hist)
@@ -109,10 +145,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # Slot checkbox to save the settings
     def save_check_box_settings(self):
         settings = QSettings()
+        settings.setValue(SETTINGS_HIST_INFO, self.accountHistNotificationCheckBox.isChecked())
         settings.setValue(SETTINGS_TRAY, self.autoRefreshCheckBox.isChecked())
         if self.autoRefreshCheckBox.isChecked():
             self.timer.start(5000)
-            self.timer2.start(30000)
+            self.timer2.start(15000)
         else:
             self.timer.stop()
             self.timer2.stop()
@@ -127,8 +164,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def update_account_info(self):
         if self.hist_account["name"] != self.accountLineEdit.text():
             self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
-            self.refresh_account()
-            self.update_account_hist()
+            self.init_new_account()
+
+    def init_new_account(self):
+        self.refresh_account()
+        self.init_account_hist()
+        self.update_account_hist()
+
+
+    def refresh_account_thread(self):
+        worker = Worker(self.refresh_account)
+        self.threadpool.start(worker)        
 
     def refresh_account(self):
         self.hist_account.refresh()
@@ -154,56 +200,195 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         ret += "custom_json - %.2f G RC - enough RC for %d custom_json\n" % (rc_calc.custom_json() / 10**9, int(estimated_rc / rc_calc.custom_json()))
         self.text.setText(ret)
 
-    def update_account_hist(self):
+    def init_account_hist(self):
         b = Blockchain(steem_instance=self.stm)
         latest_block_num = b.get_current_block_num()
         start_block_num = latest_block_num - (20 * 60 * 24)
-        votes = []
+        self.account_history = []
+        self.account_hist_info = {"start_block": 0, "trx_in_block": 0, "op_in_trx": 0, "virtual_op": 0}
+        self.append_hist_info = {"start_block": 0, "trx_in_block": 0, "op_in_trx": 0, "virtual_op": 0}
         self.lastUpvotesListWidget.clear()
         self.lastCurationListWidget.clear()
         self.lastAuthorListWidget.clear()
         self.accountHistListWidget.clear()
+        last_block = 0
+        last_trx = 0
+        for op in self.hist_account.history_reverse(stop=start_block_num):
+            start_block = op["block"]
+            virtual_op = op["virtual_op"]
+            trx_in_block = op["trx_in_block"]
+
+            if trx_in_block != last_trx or op["block"] != last_block:
+                op_in_trx = op["op_in_trx"]
+            else:
+                op_in_trx += 1
+            if virtual_op > 0:
+                op_in_trx = 0
+                if trx_in_block > 255:
+                    trx_in_block = 0          
+            self.account_history.append(op)
+            self.append_hist_info["start_block"] = start_block
+            self.append_hist_info["trx_in_block"] = trx_in_block
+            self.append_hist_info["op_in_trx"] = op_in_trx
+            self.append_hist_info["virtual_op"] = virtual_op              
+        
+        
+    def append_account_hist(self):
+        start_block = self.append_hist_info["start_block"]
+        trx_in_block = self.append_hist_info["trx_in_block"]
+        op_in_trx = self.append_hist_info["op_in_trx"]
+        virtual_op = self.append_hist_info["virtual_op"]
+        last_block = 0
+        last_trx = trx_in_block     
+        for op in self.hist_account.history(start=start_block - 3, use_block_num=True):
+            if op["block"] < start_block:
+                # last_block = op["block"]
+                continue
+            elif op["block"] == start_block:
+                if op["virtual_op"] == 0:
+                    if op["trx_in_block"] < trx_in_block:
+                        last_trx = op["trx_in_block"]
+                        continue
+                    if op["op_in_trx"] <= op_in_trx and (trx_in_block != last_trx or last_block == 0):
+                        continue
+                else:
+                    if op["virtual_op"] <= virtual_op and (trx_in_block == last_trx):
+                        continue
+            start_block = op["block"]
+            virtual_op = op["virtual_op"]
+            trx_in_block = op["trx_in_block"]
+
+            if trx_in_block != last_trx or op["block"] != last_block:
+                op_in_trx = op["op_in_trx"]
+            else:
+                op_in_trx += 1
+            if virtual_op > 0:
+                op_in_trx = 0
+                if trx_in_block > 255:
+                    trx_in_block = 0
+
+            last_block = op["block"]
+            last_trx = trx_in_block
+            self.account_history.append(op)        
+        self.append_hist_info["start_block"] = start_block
+        self.append_hist_info["trx_in_block"] = trx_in_block
+        self.append_hist_info["op_in_trx"] = op_in_trx
+        self.append_hist_info["virtual_op"] = virtual_op    
+
+    def update_account_hist_thread(self):
+        worker = Worker(self.update_account_hist)
+        self.threadpool.start(worker)
+
+    def update_account_hist(self):
+        votes = []
         daily_curation = 0
         daily_author_SP = 0
         daily_author_SBD = 0
         daily_author_STEEM = 0
-        for op in self.hist_account.history_reverse(stop=start_block_num):
-            op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
-            
+        for op in self.account_history[::-1]:
             if op["type"] == "vote":
                 if op["voter"] == self.hist_account["name"]:
                     continue
                 votes.append(op)
-                self.lastUpvotesListWidget.addItem("%s - %s (%.2f %%) upvote %s" % (op_timedelta, op["voter"], op["weight"] / 100, op["permlink"]))
-                self.accountHistListWidget.addItem("%s - %s - %s (%.2f %%) upvote %s" % (op_timedelta, op["type"], op["voter"], op["weight"] / 100, op["permlink"]))
             elif op["type"] == "curation_reward":
                 curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
                 daily_curation += curation_reward
-                self.lastCurationListWidget.addItem("%s - %.3f SP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
-                self.accountHistListWidget.addItem("%s - %s - %.3f SP for %s" % (op_timedelta, op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
             elif op["type"] == "author_reward":
                 sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
                 steem_payout = (Amount(op["steem_payout"], steem_instance=self.stm))
                 sp_payout = self.stm.vests_to_sp(Amount(op["vesting_payout"], steem_instance=self.stm))
                 daily_author_SP += sp_payout
                 daily_author_STEEM += float(steem_payout)
-                daily_author_SBD += float(sbd_payout)
-                self.lastAuthorListWidget.addItem("%s - %s %s %.3f SP for %s" % (op_timedelta, str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
-                self.accountHistListWidget.addItem("%s - %s - %s %s %.3f SP for %s" % (op_timedelta, op["type"], str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
-            elif op["type"] == "custom_json":
-                self.accountHistListWidget.addItem("%s - %s - %s" % (op_timedelta, op["type"], op["id"]))
-            elif op["type"] == "transfer":
-                self.accountHistListWidget.addItem("%s - %s - %s from %s" % (op_timedelta, op["type"], str(Amount(op["amount"], steem_instance=self.stm)), op["from"]))
+                daily_author_SBD += float(sbd_payout)            
+        
+        start_block = self.account_hist_info["start_block"]
+        if start_block == 0:
+            first_call = True
+        else:
+            first_call = False
+        trx_in_block = self.account_hist_info["trx_in_block"]
+        op_in_trx = self.account_hist_info["op_in_trx"]
+        virtual_op = self.account_hist_info["virtual_op"]
+        last_block = 0
+        last_trx = trx_in_block        
+        for op in self.account_history[::-1]:
+            if op["block"] < start_block:
+                # last_block = op["block"]
+                continue
+            elif op["block"] == start_block:
+                if op["virtual_op"] == 0:
+                    if op["trx_in_block"] < trx_in_block:
+                        last_trx = op["trx_in_block"]
+                        continue
+                    if op["op_in_trx"] <= op_in_trx and (trx_in_block != last_trx or last_block == 0):
+                        continue
+                else:
+                    if op["virtual_op"] <= virtual_op and (trx_in_block == last_trx):
+                        continue
+            start_block = op["block"]
+            virtual_op = op["virtual_op"]
+            trx_in_block = op["trx_in_block"]
+
+            if trx_in_block != last_trx or op["block"] != last_block:
+                op_in_trx = op["op_in_trx"]
             else:
-                self.accountHistListWidget.addItem("%s - %s" % (op_timedelta, op["type"]))
+                op_in_trx += 1
+            if virtual_op > 0:
+                op_in_trx = 0
+                if trx_in_block > 255:
+                    trx_in_block = 0
+
+            last_block = op["block"]
+            last_trx = trx_in_block            
+            
+            op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
+            op_local_time = formatTimeString(op["timestamp"]).astimezone(tz.tzlocal())
+            
+            if op["type"] == "vote":
+                if op["voter"] == self.hist_account["name"]:
+                    continue
+                self.lastUpvotesListWidget.insertItem(0,"%s - %s (%.2f %%) upvote %s" % (op_timedelta, op["voter"], op["weight"] / 100, op["permlink"]))
+                hist_item = "%s - %s - %s (%.2f %%) upvote %s" % (op_local_time, op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                self.accountHistListWidget.insertItem(0, hist_item)
+            elif op["type"] == "curation_reward":
+                curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
+                self.lastCurationListWidget.insertItem(0, "%s - %.3f SP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
+                hist_item = "%s - %s - %.3f SP for %s" % (op_local_time, op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"]))
+                self.accountHistListWidget.insertItem(0, hist_item)
+            elif op["type"] == "author_reward":
+                sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
+                steem_payout = (Amount(op["steem_payout"], steem_instance=self.stm))
+                sp_payout = self.stm.vests_to_sp(Amount(op["vesting_payout"], steem_instance=self.stm))
+                self.lastAuthorListWidget.insertItem(0, "%s - %s %s %.3f SP for %s" % (op_timedelta, str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
+                hist_item = "%s - %s - %s %s %.3f SP for %s" % (op_local_time, op["type"], str(sbd_payout), str(steem_payout), sp_payout, op["permlink"])
+                self.accountHistListWidget.insertItem(0, hist_item)
+            elif op["type"] == "custom_json":
+                hist_item = "%s - %s - %s" % (op_local_time, op["type"], op["id"])
+                self.accountHistListWidget.insertItem(0, hist_item)
+            elif op["type"] == "transfer":
+                hist_item = "%s - %s - %s from %s" % (op_local_time, op["type"], str(Amount(op["amount"], steem_instance=self.stm)), op["from"])
+                self.accountHistListWidget.insertItem(0, hist_item)
+            else:
+                hist_item = "%s - %s" % (op_local_time, op["type"])
+                self.accountHistListWidget.insertItem(0, hist_item)
+            
+            if self.accountHistNotificationCheckBox.isChecked() and not first_call:
+                self.tray.showMessage(self.hist_account["name"], hist_item)
+        
+        self.account_hist_info["start_block"] = start_block
+        self.account_hist_info["trx_in_block"] = trx_in_block
+        self.account_hist_info["op_in_trx"] = op_in_trx
+        self.account_hist_info["virtual_op"] = virtual_op
+    
+        self.append_account_hist()
         reward_text = "Curation reward (last 24 h): %.3f SP\n" % daily_curation
         reward_text += "Author reward (last 24 h):\n"
         reward_text += "%.3f SP - %.3f STEEM - %.3f SBD" % (daily_author_SP, (daily_author_STEEM), (daily_author_SBD))
         self.text2.setText(reward_text)
-            
+  
+
     def read_account_hist(self):
         self.tray.showMessage("Please wait", "reading account history")
-        self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
         transfer_hist = []
         transfer_vest_hist = []
         n = 0

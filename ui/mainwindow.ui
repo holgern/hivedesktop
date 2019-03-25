@@ -296,6 +296,23 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="tab_3">
+       <attribute name="title">
+        <string>Account history</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="1" column="0">
+         <widget class="QListWidget" name="accountHistListWidget"/>
+        </item>
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="accountHistNotificationCheckBox">
+          <property name="text">
+           <string>Notification on all events</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
       <widget class="QWidget" name="tab_2">
        <attribute name="title">
         <string>bookkeeping</string>
@@ -326,16 +343,6 @@
            </widget>
           </item>
          </layout>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="tab_3">
-       <attribute name="title">
-        <string>Account history</string>
-       </attribute>
-       <layout class="QGridLayout" name="gridLayout_5">
-        <item row="0" column="0">
-         <widget class="QListWidget" name="accountHistListWidget"/>
         </item>
        </layout>
       </widget>
