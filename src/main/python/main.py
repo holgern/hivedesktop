@@ -205,75 +205,45 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         latest_block_num = b.get_current_block_num()
         start_block_num = latest_block_num - (20 * 60 * 24)
         self.account_history = []
-        self.account_hist_info = {"start_block": 0, "trx_in_block": 0, "op_in_trx": 0, "virtual_op": 0}
-        self.append_hist_info = {"start_block": 0, "trx_in_block": 0, "op_in_trx": 0, "virtual_op": 0}
+        self.account_hist_info = {"start_block": 0, "trx_ids": []}
+        self.append_hist_info = {"start_block": 0, "trx_ids": []}
         self.lastUpvotesListWidget.clear()
         self.lastCurationListWidget.clear()
         self.lastAuthorListWidget.clear()
         self.accountHistListWidget.clear()
         last_block = 0
-        last_trx = 0
+        trx_ids = []
         for op in self.hist_account.history_reverse(stop=start_block_num):
             start_block = op["block"]
-            virtual_op = op["virtual_op"]
-            trx_in_block = op["trx_in_block"]
 
-            if trx_in_block != last_trx or op["block"] != last_block:
-                op_in_trx = op["op_in_trx"]
+            if op["block"] != last_block:
+                trx_ids = [op["trx_id"]]
             else:
-                op_in_trx += 1
-            if virtual_op > 0:
-                op_in_trx = 0
-                if trx_in_block > 255:
-                    trx_in_block = 0          
+                trx_ids.append(op["trx_id"])
             self.account_history.append(op)
-            self.append_hist_info["start_block"] = start_block
-            self.append_hist_info["trx_in_block"] = trx_in_block
-            self.append_hist_info["op_in_trx"] = op_in_trx
-            self.append_hist_info["virtual_op"] = virtual_op              
+            last_block = op["block"]
+        self.append_hist_info["start_block"] = start_block
+        self.append_hist_info["trx_ids"] = trx_ids
         
         
     def append_account_hist(self):
         start_block = self.append_hist_info["start_block"]
-        trx_in_block = self.append_hist_info["trx_in_block"]
-        op_in_trx = self.append_hist_info["op_in_trx"]
-        virtual_op = self.append_hist_info["virtual_op"]
-        last_block = 0
-        last_trx = trx_in_block     
+        trx_ids = self.append_hist_info["trx_ids"]
         for op in self.hist_account.history(start=start_block - 3, use_block_num=True):
             if op["block"] < start_block:
-                # last_block = op["block"]
                 continue
             elif op["block"] == start_block:
-                if op["virtual_op"] == 0:
-                    if op["trx_in_block"] < trx_in_block:
-                        last_trx = op["trx_in_block"]
-                        continue
-                    if op["op_in_trx"] <= op_in_trx and (trx_in_block != last_trx or last_block == 0):
-                        continue
+                if op["trx_id"] in trx_ids:
+                    continue
                 else:
-                    if op["virtual_op"] <= virtual_op and (trx_in_block == last_trx):
-                        continue
-            start_block = op["block"]
-            virtual_op = op["virtual_op"]
-            trx_in_block = op["trx_in_block"]
-
-            if trx_in_block != last_trx or op["block"] != last_block:
-                op_in_trx = op["op_in_trx"]
+                    trx_ids.append(op["trx_id"])
             else:
-                op_in_trx += 1
-            if virtual_op > 0:
-                op_in_trx = 0
-                if trx_in_block > 255:
-                    trx_in_block = 0
+                trx_ids = [op["trx_id"]]
 
-            last_block = op["block"]
-            last_trx = trx_in_block
+            start_block = op["block"]
             self.account_history.append(op)        
         self.append_hist_info["start_block"] = start_block
-        self.append_hist_info["trx_in_block"] = trx_in_block
-        self.append_hist_info["op_in_trx"] = op_in_trx
-        self.append_hist_info["virtual_op"] = virtual_op    
+        self.append_hist_info["trx_ids"] = trx_ids
 
     def update_account_hist_thread(self):
         worker = Worker(self.update_account_hist)
@@ -306,41 +276,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             first_call = True
         else:
             first_call = False
-        trx_in_block = self.account_hist_info["trx_in_block"]
-        op_in_trx = self.account_hist_info["op_in_trx"]
-        virtual_op = self.account_hist_info["virtual_op"]
-        last_block = 0
-        last_trx = trx_in_block        
+        trx_ids = self.account_hist_info["trx_ids"]
+     
         for op in self.account_history[::-1]:
             if op["block"] < start_block:
                 # last_block = op["block"]
                 continue
             elif op["block"] == start_block:
-                if op["virtual_op"] == 0:
-                    if op["trx_in_block"] < trx_in_block:
-                        last_trx = op["trx_in_block"]
-                        continue
-                    if op["op_in_trx"] <= op_in_trx and (trx_in_block != last_trx or last_block == 0):
-                        continue
+                if op["trx_id"] in trx_ids:
+                    continue
                 else:
-                    if op["virtual_op"] <= virtual_op and (trx_in_block == last_trx):
-                        continue
-            start_block = op["block"]
-            virtual_op = op["virtual_op"]
-            trx_in_block = op["trx_in_block"]
-
-            if trx_in_block != last_trx or op["block"] != last_block:
-                op_in_trx = op["op_in_trx"]
+                    trx_ids.append(op["trx_id"])
             else:
-                op_in_trx += 1
-            if virtual_op > 0:
-                op_in_trx = 0
-                if trx_in_block > 255:
-                    trx_in_block = 0
+                trx_ids = [op["trx_id"]]
+            start_block = op["block"]
 
-            last_block = op["block"]
-            last_trx = trx_in_block            
-            
             op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
             op_local_time = formatTimeString(op["timestamp"]).astimezone(tz.tzlocal())
             
@@ -376,9 +326,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tray.showMessage(self.hist_account["name"], hist_item)
         
         self.account_hist_info["start_block"] = start_block
-        self.account_hist_info["trx_in_block"] = trx_in_block
-        self.account_hist_info["op_in_trx"] = op_in_trx
-        self.account_hist_info["virtual_op"] = virtual_op
+        self.account_hist_info["trx_ids"] = trx_ids
     
         self.append_account_hist()
         reward_text = "Curation reward (last 24 h): %.3f SP\n" % daily_curation
