@@ -45,7 +45,7 @@ script:
 
 after_success:
  - mv ./target/* .
- - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then curl -T steemdesktop.dmg https://transfer.sh/steemdesktop.dmg; fi
- - if [[ "$BUILD_LINUX" == "yes" ]]; then curl -T steemdesktop.deb https://transfer.sh/steemdesktop.deb; fi
+ - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then curl -T steemdesktop.dmg https://transfer.sh/steemdesktop.dmg | cat; fi
+ - if [[ "$BUILD_LINUX" == "yes" ]]; then curl -T steemdesktop.deb https://transfer.sh/steemdesktop.deb | cat; fi
  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then shasum -a 256 steemdesktop.dmg; fi
  - if [[ "$BUILD_LINUX" == "yes" ]]; then sha256sum steemdesktop.deb; fi
