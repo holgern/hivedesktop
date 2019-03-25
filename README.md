@@ -1,4 +1,7 @@
 # steemdesktop
+[![Build status](https://ci.appveyor.com/api/projects/status/bslkklpossc3xmub?svg=true)](https://ci.appveyor.com/project/holger80/steemdesktop)
+[![Build Status](https://travis-ci.org/holgern/steemdesktop.svg?branch=master)](https://travis-ci.org/holgern/steemdesktop)
+
 A pyqt5 based desktop app for the steem blockchain
 
 ## Setup 
