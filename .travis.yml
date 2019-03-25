@@ -44,8 +44,25 @@ script:
  - fbs installer
 
 after_success:
- - mv ./target/* .
- - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then curl -T steemdesktop.dmg https://transfer.sh/steemdesktop.dmg | cat; fi
- - if [[ "$BUILD_LINUX" == "yes" ]]; then curl -T steemdesktop.deb https://transfer.sh/steemdesktop.deb | cat; fi
- - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then shasum -a 256 steemdesktop.dmg; fi
- - if [[ "$BUILD_LINUX" == "yes" ]]; then sha256sum steemdesktop.deb; fi
+ - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then shasum -a 256 ./target/steemdesktop.dmg; fi
+ - if [[ "$BUILD_LINUX" == "yes" ]]; then sha256sum ./target/steemdesktop.deb; fi
+
+deploy:
+ provider: releases
+  # NOTE updating the `api_key.secure`
+  # - go to: https://github.com/settings/tokens/new
+  # - generate new token using `public_repo` scope
+  # - encrypt it using: `travis encrypt API_KEY_HERE`
+  # - paste the output below
+ api_key:
+   secure: "jnqWYzmQlmea0jmxAWMah1Q30b5tTnumVK+DPDDqNMwYH45IBGSnHK1qBRCfPvCzaqvwG+n8Su/S6RymgB2m/R7+QRzS4TpsHv1TZPO3yagGag5prYx/G/gb0CYfET5hWjCpsRsg++0OcfqkYDKH4HkdmNBwUhp357wgYH6A4JqCkd44fObEOBdCBTDl0MO4gmX/bh/6h/cplAPBRBB0CM4Pnvfo4bGBHeh2fV3BMBJwJCpo8wFExTMA2Iw9djjD4bv/6UlzQDZWbDdWh0+EJnyS1tgAzHyuoh9m/iTy4itj0IIWqxW40O9vzpkEhmjxNhqW8vaTH75v7lPlmB79DNryA0V72sOMq0xzI3zymarLev+6tjh2z4xp0zqNJtxyQeVBZTV3vJhamOsMLyQuSOdqKsBSj8Y4yKG7wSB0Da1KIP1DyNjxoLPy24UGyDRlsFH1kMh1ar1B2aUn9jZkcPEU7IiQ5GccYk48oM/AzMfz3KH7U5dQBjAE/9Ma8Zl9w1SjvCulQXQVgKAik3emXMfjufcnDBECa+huqZdXWwrKS0ZBnnNm1yVQErXiO8hUR5lNDtRlRO1hNZF69aeEdpN3FV3+apfSM2P7shnHAQpH84Pn1PNZLXBdOAUQ/WxXIQpIGo1AgWviiVWzadWkwyooYUPReeEnPFsjc+9hUzA="
+
+ file_glob: true
+ file: ./target/*
+ skip_cleanup: true
+ on:
+   tags: true
+   
+notifications:
+  email:
+    on_success: never
