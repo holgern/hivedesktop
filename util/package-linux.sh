@@ -5,7 +5,8 @@
 BUILD="steemdesktop_linux.deb"
 echo -e ${BUILD}
 mv target/steemdesktop.deb ./${BUILD}
-curl -T steemdesktop_linux.deb https://transfer.sh/steemdesktop_linux.deb
+wget -t 1 -qO - --method=PUT --body-file="steemdesktop_linux.deb" --header="Content-Type: $(file -b --mime-type steemdesktop_linux.deb)" https://transfer.sh/steemdesktop_linux.deb;
+# curl -T steemdesktop_linux.deb https://transfer.sh/steemdesktop_linux.
 # Required for a newline between the outputs
 echo -e "\n"
 md5sum  ${BUILD}

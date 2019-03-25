@@ -5,7 +5,8 @@
 BUILD="steemdesktop_osx.dmg"
 echo -e $BUILD
 mv target/steemdesktop.dmg "$BUILD"
-curl -T steemdesktop_osx.dmg https://transfer.sh/steemdesktop_osx.dmg
+wget -t 1 -qO - --method=PUT --body-file="steemdesktop_osx.dmg" --header="Content-Type: $(file -b --mime-type steemdesktop_osx.dmg)" https://transfer.sh/steemdesktop_osx.dmg;
+
 # Required for a newline between the outputs
 echo -e "\n"
 md5 -r "$BUILD"
