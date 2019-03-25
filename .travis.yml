@@ -44,8 +44,8 @@ script:
  - fbs installer
 
 after_success:
- - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then shasum -a 256 ./target/steemdesktop.dmg; fi
- - if [[ "$BUILD_LINUX" == "yes" ]]; then sha256sum ./target/steemdesktop.deb; fi
+ - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then shasum -a 256 ./target/steemdesktop.dmg >> ./target/steemdesktop.dmg.sha256; fi
+ - if [[ "$BUILD_LINUX" == "yes" ]]; then sha256sum ./target/steemdesktop.deb >> ./target/steemdesktop.deb.sha256;  fi
 
 deploy:
  provider: releases
