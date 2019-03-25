@@ -22,6 +22,8 @@ import io
 import argparse
 import re
 import six
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.ERROR)
 
 ORGANIZATION_NAME = 'holger80'
 ORGANIZATION_DOMAIN = 'beempy.com'
@@ -215,7 +217,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         trx_ids = []
         for op in self.hist_account.history_reverse(stop=start_block_num):
             start_block = op["block"]
-
             if op["block"] != last_block:
                 trx_ids = [op["trx_id"]]
             else:
@@ -229,7 +230,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def append_account_hist(self):
         start_block = self.append_hist_info["start_block"]
         trx_ids = self.append_hist_info["trx_ids"]
-        for op in self.hist_account.history(start=start_block - 3, use_block_num=True):
+        for op in self.hist_account.history(start=start_block - 100, use_block_num=True):
             if op["block"] < start_block:
                 continue
             elif op["block"] == start_block:
@@ -293,7 +294,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
             op_local_time = formatTimeString(op["timestamp"]).astimezone(tz.tzlocal())
-            
+            # print(op["index"])
             if op["type"] == "vote":
                 if op["voter"] == self.hist_account["name"]:
                     continue
