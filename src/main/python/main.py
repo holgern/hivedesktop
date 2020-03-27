@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplicat
      QLineEdit, QTabWidget
 from ui_mainwindow import Ui_MainWindow
 import hivedesktop_rc
+from threading import Lock
 from beem import Steem
 from beem.comment import Comment
 from beem.account import Account
@@ -81,7 +82,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Set up the user interface from Designer.
         self.setupUi(self)
 
-        
+        self.redrawLock = Lock()
+		
         self.timer = QTimer()
         self.timer.timeout.connect(self.refresh_account_thread)
         
@@ -182,16 +184,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def refresh_account(self):
         self.hist_account.refresh()
         self.accountInfoGroupBox.setTitle("%s (%.3f)" % (self.hist_account["name"], self.hist_account.rep))
-        self.votePowerProgressBar.setValue(int(self.hist_account.vp))
-        self.votePowerProgressBar.setFormat("%.2f %%, full in %s" % (self.hist_account.vp, self.hist_account.get_recharge_time_str()))
+        with self.redrawLock:
+            self.votePowerProgressBar.setValue(int(self.hist_account.vp))
+            self.votePowerProgressBar.setFormat("%.2f %%, full in %s" % (self.hist_account.vp, self.hist_account.get_recharge_time_str()))
         self.votePowerLabel.setText("Vote Power, a 100%% vote is %.3f $" % (self.hist_account.get_voting_value_SBD()))
         self.STEEMLabel.setText(str(self.hist_account["balance"]))
         self.SBDLabel.setText(str(self.hist_account["sbd_balance"]))
         self.SPLabel.setText("%.3f HP" % self.stm.vests_to_sp(self.hist_account["vesting_shares"]))
         try:
             rc_manabar = self.hist_account.get_rc_manabar()
-            self.RCProgressBar.setValue(int(rc_manabar["current_pct"]))
-            self.RCProgressBar.setFormat("%.2f %%, full in %s" % (rc_manabar["current_pct"], self.hist_account.get_manabar_recharge_time_str(rc_manabar)))
+            with self.redrawLock:
+                self.RCProgressBar.setValue(int(rc_manabar["current_pct"]))
+                self.RCProgressBar.setFormat("%.2f %%, full in %s" % (rc_manabar["current_pct"], self.hist_account.get_manabar_recharge_time_str(rc_manabar)))
         
             rc = self.hist_account.get_rc()
             estimated_rc = int(rc["max_rc"]) * rc_manabar["current_pct"] / 100
