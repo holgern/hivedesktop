@@ -1,9 +1,11 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext, cached_property
 from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer, QRunnable, pyqtSlot, QThreadPool
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QMenu, \
      QSystemTrayIcon, QDialog, QMainWindow, QGridLayout, QCheckBox, QSizePolicy, QSpacerItem, \
      QLineEdit, QTabWidget
 from ui_mainwindow import Ui_MainWindow
+import hivedesktop_rc
 from beem import Steem
 from beem.comment import Comment
 from beem.account import Account
@@ -111,10 +113,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         aboutAction.triggered.connect(self.about)
         exitAction = menu.addAction("exit")
         exitAction.triggered.connect(sys.exit)
-        self.tray = QSystemTrayIcon()
+        self.tray = QSystemTrayIcon(QIcon(':/icons/icon.ico'))
         self.tray.setContextMenu(menu)
         self.tray.show()
-        self.tray.setToolTip("Hive Desktop!")		
+        self.tray.setToolTip("Hive Desktop!")
         
         account = account_state
         nodelist = NodeList()
