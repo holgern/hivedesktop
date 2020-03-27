@@ -29,15 +29,20 @@ install:
 
 - cmd: set "PATH=%PYTHON%;%PYTHON%\\Scripts;%PYTHON%\\Tools\\Scripts;C:\\Users\\appveyor\\AppData\\Roaming\\Python\\Python36\\Scripts;%PATH%"
 - cmd: python -m pip install pip -U --user
+- cmd: python -m pip install virtualenv --user
+- cmd: python -m virtualenv env
+- cmd: C:\\Users\\appveyor\\AppData\\Roaming\\Python\\Python36\\Scripts\\activate
 - cmd: pip install fbs PyQt5==5.12.3 PyInstaller==3.4 beem cryptography pywin32  python-dateutil setuptools --user
 
 
 build_script:
  # Build the compiled extension
+- cmd: C:\\Users\\appveyor\\AppData\\Roaming\\Python\\Python36\\Scripts\\activate
 - cmd: fbs freeze
 
 after_test:
  # If tests are successful, create binary packages for the project.
+- cmd: C:\\Users\\appveyor\\AppData\\Roaming\\Python\\Python36\\Scripts\\activate
 - cmd: fbs installer
 - ps: ren target\hivedesktopSetup.exe $env:BUILD
 - ps: copy target\$env:BUILD .\$env:BUILD
