@@ -36,8 +36,8 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install --upgrade wheel; fi
   - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip install --upgrade setuptools; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install --upgrade setuptools; fi
-  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip install fbs PyQt5==5.12.3 PyInstaller==3.6 beem cryptography pycryptodome; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install fbs PyQt5==5.12.3 PyInstaller==3.6 beem cryptography pycryptodome; fi
+  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip install fbs PyQt5==5.9.2 PyInstaller==3.4 beem cryptography pycryptodome; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install fbs PyQt5==5.9.2 PyInstaller==3.4 beem cryptography pycryptodome; fi
 
 script:
  - fbs freeze
