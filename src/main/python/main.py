@@ -24,6 +24,7 @@ import io
 import argparse
 import re
 import six
+import fix_qt_import_error
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.ERROR)
 
