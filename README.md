@@ -32,6 +32,13 @@ pip install pywin32
 ```
 is necessary
 
+## Create files
+
+```
+pyuic5 ui\mainwindow.ui -o src\main\python\ui_mainwindow.py
+pyrcc5 src\main\hivedesktop.rc -o src\main\python\hivedesktop_rc.py
+```
+
 ## Run the app
 ```
 fbs run
