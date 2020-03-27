@@ -1,6 +1,6 @@
 # hivedesktop
 [![Build status](https://ci.appveyor.com/api/projects/status/gr0cpgpsi6u97d3p?svg=true)](https://ci.appveyor.com/project/holger80/hivedesktop)
-[![Build Status](https://travis-ci.org/holgern/steemhive.svg?branch=master)](https://travis-ci.org/holgern/steemhive)
+[![Build Status](https://travis-ci.org/holgern/hivedesktop.svg?branch=master)](https://travis-ci.org/holgern/hivedesktop)
 A pyqt5 based desktop app for the hive blockchain
 
 ## Setup 
