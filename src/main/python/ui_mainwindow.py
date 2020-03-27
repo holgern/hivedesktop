@@ -2,11 +2,13 @@
 
 # Form implementation generated from reading ui file '.\ui\mainwindow.ui'
 #
-# Created by: PyQt5 UI code generator 5.9.2
+# Created by: PyQt5 UI code generator 5.12.3
 #
 # WARNING! All changes made in this file will be lost!
 
+
 from PyQt5 import QtCore, QtGui, QtWidgets
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -99,10 +101,11 @@ class Ui_MainWindow(object):
         self.RCLabel.setObjectName("RCLabel")
         self.gridLayout_2.addWidget(self.RCLabel, 2, 0, 1, 1)
         self.RCProgressBar = QtWidgets.QProgressBar(self.accountInfoGroupBox)
+        self.RCProgressBar.setEnabled(True)
         font = QtGui.QFont()
         font.setPointSize(10)
         self.RCProgressBar.setFont(font)
-        self.RCProgressBar.setProperty("value", 24)
+        self.RCProgressBar.setProperty("value", 100)
         self.RCProgressBar.setObjectName("RCProgressBar")
         self.gridLayout_2.addWidget(self.RCProgressBar, 3, 0, 1, 1)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
@@ -180,24 +183,6 @@ class Ui_MainWindow(object):
         self.accountHistNotificationCheckBox.setObjectName("accountHistNotificationCheckBox")
         self.gridLayout_5.addWidget(self.accountHistNotificationCheckBox, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tab_3, "")
-        self.tab_2 = QtWidgets.QWidget()
-        self.tab_2.setObjectName("tab_2")
-        self.gridLayout_4 = QtWidgets.QGridLayout(self.tab_2)
-        self.gridLayout_4.setObjectName("gridLayout_4")
-        self.verticalLayout = QtWidgets.QVBoxLayout()
-        self.verticalLayout.setObjectName("verticalLayout")
-        self.bookkeepingLabel = QtWidgets.QLabel(self.tab_2)
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.bookkeepingLabel.setFont(font)
-        self.bookkeepingLabel.setWordWrap(False)
-        self.bookkeepingLabel.setObjectName("bookkeepingLabel")
-        self.verticalLayout.addWidget(self.bookkeepingLabel)
-        self.drugwarsPushButton = QtWidgets.QPushButton(self.tab_2)
-        self.drugwarsPushButton.setObjectName("drugwarsPushButton")
-        self.verticalLayout.addWidget(self.drugwarsPushButton)
-        self.gridLayout_4.addLayout(self.verticalLayout, 0, 0, 1, 1)
-        self.tabWidget.addTab(self.tab_2, "")
         self.gridLayout.addWidget(self.tabWidget, 0, 1, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -214,7 +199,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "HiveDesktop"))
         self.groupBox_2.setTitle(_translate("MainWindow", "Settings"))
         self.label_3.setText(_translate("MainWindow", "account"))
         self.refreshPushButton.setText(_translate("MainWindow", "Refresh"))
@@ -222,7 +207,7 @@ class Ui_MainWindow(object):
         self.accountInfoGroupBox.setTitle(_translate("MainWindow", "holger80 (70)"))
         self.votePowerLabel.setText(_translate("MainWindow", "Vote Power"))
         self.RCLabel.setText(_translate("MainWindow", "RC"))
-        self.RCProgressBar.setFormat(_translate("MainWindow", "%p% full in 87 hours"))
+        self.RCProgressBar.setFormat(_translate("MainWindow", "%p% full in 0 hours"))
         self.STEEMLabel.setText(_translate("MainWindow", "TextLabel"))
         self.SBDLabel.setText(_translate("MainWindow", "TextLabel"))
         self.SPLabel.setText(_translate("MainWindow", "TextLabel"))
@@ -232,7 +217,3 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Account info"))
         self.accountHistNotificationCheckBox.setText(_translate("MainWindow", "Notification on all events"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "Account history"))
-        self.bookkeepingLabel.setText(_translate("MainWindow", "TextLabel"))
-        self.drugwarsPushButton.setText(_translate("MainWindow", "Show drugwars stats"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "bookkeeping"))
-

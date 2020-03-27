@@ -14,11 +14,11 @@ install:
     $env:COMM_HASH = $env:APPVEYOR_REPO_COMMIT.Substring(0,8)
     
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER) {
-        $env:BUILD = "steemdesktopSetup-{0}-{1}.exe" -f $env:COMM_TAG, $env:COMM_HASH
+        $env:BUILD = "hivedesktopSetup-{0}-{1}.exe" -f $env:COMM_TAG, $env:COMM_HASH
         $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_HASH
     }
     else {
-        $env:BUILD = "steemdesktopSetup-{0}-{1}-{2}.exe" -f $env:COMM_TAG, $env:COMM_COUNT, $env:COMM_HASH
+        $env:BUILD = "hivedesktopSetup-{0}-{1}-{2}.exe" -f $env:COMM_TAG, $env:COMM_COUNT, $env:COMM_HASH
         $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_COUNT
     }
 
@@ -29,7 +29,7 @@ install:
 
 - cmd: set "PATH=%PYTHON%;%PYTHON%\\Scripts;%PYTHON%\\Tools\\Scripts;C:\\Users\\appveyor\\AppData\\Roaming\\Python\\Python36\\Scripts;%PATH%"
 - cmd: pip install pip -U --user
-- cmd: pip install fbs PyQt5==5.9.2 PyInstaller==3.4 beem cryptography pywin32 --user
+- cmd: pip install fbs PyQt5==5.12.3 PyInstaller==3.6 beem cryptography pywin32 --user
 
 
 build_script:
@@ -39,7 +39,7 @@ build_script:
 after_test:
  # If tests are successful, create binary packages for the project.
 - cmd: fbs installer
-- ps: ren target\steemdesktopSetup.exe $env:BUILD
+- ps: ren target\hivedesktopSetup.exe $env:BUILD
 - ps: copy target\$env:BUILD .\$env:BUILD
 - cmd: ls
 - ps: | # generate sha256 hashes
@@ -50,9 +50,9 @@ after_test:
 artifacts:
   # Archive the generated packages in the ci.appveyor.com build report.
 - path: $(BUILD)
-  name: steemdesktop
+  name: hivedesktop
 - path: $(BUILD).sha256
-  name: steemdesktop sha256 hash
+  name: hivedesktop sha256 hash
 
 on_finish: 
 - ps: | # update appveyor build version, done last to prevent webhook breakage

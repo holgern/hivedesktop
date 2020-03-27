@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>HiveDesktop</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -156,16 +156,19 @@
            </item>
            <item row="3" column="0">
             <widget class="QProgressBar" name="RCProgressBar">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
              <property name="font">
               <font>
                <pointsize>10</pointsize>
               </font>
              </property>
              <property name="value">
-              <number>24</number>
+              <number>100</number>
              </property>
              <property name="format">
-              <string>%p% full in 87 hours</string>
+              <string>%p% full in 0 hours</string>
              </property>
             </widget>
            </item>
@@ -310,39 +313,6 @@
            <string>Notification on all events</string>
           </property>
          </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="tab_2">
-       <attribute name="title">
-        <string>bookkeeping</string>
-       </attribute>
-       <layout class="QGridLayout" name="gridLayout_4">
-        <item row="0" column="0">
-         <layout class="QVBoxLayout" name="verticalLayout">
-          <item>
-           <widget class="QLabel" name="bookkeepingLabel">
-            <property name="font">
-             <font>
-              <pointsize>10</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>TextLabel</string>
-            </property>
-            <property name="wordWrap">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="drugwarsPushButton">
-            <property name="text">
-             <string>Show drugwars stats</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
         </item>
        </layout>
       </widget>
