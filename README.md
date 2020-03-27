@@ -1,6 +1,6 @@
-# steemdesktop
-[![Build status](https://ci.appveyor.com/api/projects/status/bslkklpossc3xmub?svg=true)](https://ci.appveyor.com/project/holger80/steemdesktop)
-[![Build Status](https://travis-ci.org/holgern/steemdesktop.svg?branch=master)](https://travis-ci.org/holgern/steemdesktop)
+# hivedesktop
+[![Build status](https://ci.appveyor.com/api/projects/status/gr0cpgpsi6u97d3p?svg=true)](https://ci.appveyor.com/project/holger80/hivedesktop)
+[![Build Status](https://travis-ci.org/holgern/steemhive.svg?branch=master)](https://travis-ci.org/holgern/steemdesktop)
 
 A pyqt5 based desktop app for the steem blockchain
 
@@ -19,7 +19,7 @@ python -m virtualenv env
 
 Install the packages:
 ```
-pip install fbs PyQt5==5.9.2 PyInstaller==3.4 beem cryptography
+pip install fbs PyQt5==5.12.3 PyInstaller==3.6 beem cryptography
 ```
 
 For windows
