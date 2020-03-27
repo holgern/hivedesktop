@@ -38,7 +38,7 @@ install:
 build_script:
  # Build the compiled extension
 - cmd: C:\projects\hivedesktop\env\Scripts\activate
-- cmd: fbs freeze
+- cmd: fbs freeze --debug
 
 after_test:
  # If tests are successful, create binary packages for the project.
