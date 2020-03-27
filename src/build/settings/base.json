@@ -3,5 +3,5 @@
     "author": "holger80",
     "main_module": "src/main/python/main.py",
     "version": "0.2.5",
-	"hidden_imports": ["scrypt", "_scrypt", "websocket", "pylibscrypt", "cffi", "cryptography.hazmat.backends.openssl", "cryptography"]
+	"hidden_imports": ["scrypt", "_scrypt", "websocket", "pylibscrypt", "cffi", "cryptography.hazmat.backends.openssl", "cryptography", "pkg_resources.py2_warn"]
 }
