@@ -1,9 +1,10 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext, cached_property
-from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer, QRunnable, pyqtSlot, QThreadPool
-from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer, QRunnable, pyqtSlot, QThreadPool, \
+     QStandardPaths
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QMenu, \
      QSystemTrayIcon, QDialog, QMainWindow, QGridLayout, QCheckBox, QSizePolicy, QSpacerItem, \
-     QLineEdit, QTabWidget
+     QLineEdit, QTabWidget, QSplashScreen, QMessageBox, QAction
 from ui_mainwindow import Ui_MainWindow
 import hivedesktop_rc
 from threading import Lock
@@ -88,15 +89,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.timer.timeout.connect(self.refresh_account_thread)
         
         self.timer2 = QTimer()
-        self.timer2.timeout.connect(self.update_account_hist_thread)        
+        self.timer2.timeout.connect(self.update_account_hist_thread)
+
+        self.timer3 = QTimer()
+        self.timer3.timeout.connect(self.update_account_feed_thread)
+        
+        self.cache_path = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
       
         # Get settings
         settings = QSettings()
         # Get checkbox state with speciying type of checkbox:
         # type=bool is a replacement of toBool() in PyQt5
-        check_state = settings.value(SETTINGS_TRAY, False, type=bool)
-        hist_info_check_state = settings.value(SETTINGS_HIST_INFO, False, type=bool)
-        account_state = settings.value(SETTINGS_ACCOUNT, "holger80", type=str)
+        check_state = settings.value(SETTINGS_TRAY, True, type=bool)
+        hist_info_check_state = settings.value(SETTINGS_HIST_INFO, True, type=bool)
+        account_state = settings.value(SETTINGS_ACCOUNT, "", type=str)
         # Set state
         self.accountHistNotificationCheckBox.setChecked(hist_info_check_state)
         self.autoRefreshCheckBox.setChecked(check_state)
@@ -108,29 +114,62 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.autoRefreshCheckBox.clicked.connect(self.save_check_box_settings)   
         self.accountHistNotificationCheckBox.clicked.connect(self.save_check_box_settings)  
         self.accountLineEdit.editingFinished.connect(self.save_account_settings)
-        
+        self.actionAbout.triggered.connect(self.about)
         self.threadpool = QThreadPool()
         
+        self.minimizeAction = QAction("Mi&nimize", self, triggered=self.hide)
+        self.maximizeAction = QAction("Ma&ximize", self,
+                triggered=self.showMaximized)
+        self.restoreAction = QAction("&Restore", self,
+                triggered=self.showNormal)        
+        
         menu = QMenu()
-        aboutAction = menu.addAction("about")
-        aboutAction.triggered.connect(self.about)
+        menu.addAction(self.minimizeAction)
+        menu.addAction(self.maximizeAction)
+        menu.addAction(self.restoreAction)
+        menu.addSeparator()        
+        # aboutAction = menu.addAction("about")
+        # aboutAction.triggered.connect(self.about)
         exitAction = menu.addAction("exit")
         exitAction.triggered.connect(sys.exit)
         self.tray = QSystemTrayIcon(QIcon(':/icons/icon.ico'))
         self.tray.setContextMenu(menu)
         self.tray.show()
         self.tray.setToolTip("Hive Desktop!")
+        splash_pix = QPixmap(':/icons/splash.png')
+        splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+        splash.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        splash.setEnabled(False)
+        
+        splash.show()
+        splash.showMessage("<h1><font color='green'>starting...</font></h1>", Qt.AlignTop | Qt.AlignCenter, Qt.black)        
         
         account = account_state
         nodelist = NodeList()
         nodelist.update_nodes()
         self.stm = Steem(node=nodelist.get_nodes(hive=True))
-        self.hist_account = Account(account, steem_instance=self.stm)
-        self.init_new_account()
+        if account != "":
+            try:
+                self.hist_account = Account(account, steem_instance=self.stm)
+            except:
+                self.hist_account = None
+        else:
+            self.hist_account = None
+        if self.hasFocus is not None:
+            self.init_new_account()
         # self.button.clicked.connect(lambda: self.text.setText(_get_quote(self.hist_account, self.stm)))
         self.refreshPushButton.clicked.connect(self.refresh_account_thread)
         self.refreshPushButton.clicked.connect(self.update_account_hist_thread)
         self.accountLineEdit.editingFinished.connect(self.update_account_info)
+
+    def closeEvent(self, event):
+        if self.tray.isVisible():
+            QMessageBox.information(self, "Hive Desktop",
+                    "The program will keep running in the system tray. To "
+                    "terminate the program, choose <b>Quit</b> in the "
+                    "context menu of the system tray entry.")
+            self.hide()
+            event.ignore()
 
     def about(self):
         self.dialog = QDialog()
@@ -167,8 +206,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         settings.sync()
 
     def update_account_info(self):
-        if self.hist_account["name"] != self.accountLineEdit.text():
-            self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
+        if self.hist_account is None or self.hist_account["name"] != self.accountLineEdit.text():
+            try:
+                self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
+            except:
+                self.hist_account = None
             self.init_new_account()
 
     def init_new_account(self):
@@ -182,12 +224,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)        
 
     def refresh_account(self):
+        if self.hist_account is None:
+            return
         self.hist_account.refresh()
         self.accountInfoGroupBox.setTitle("%s (%.3f)" % (self.hist_account["name"], self.hist_account.rep))
         with self.redrawLock:
             self.votePowerProgressBar.setValue(int(self.hist_account.vp))
-            self.votePowerProgressBar.setFormat("%.2f %%, full in %s" % (self.hist_account.vp, self.hist_account.get_recharge_time_str()))
+            if self.hist_account.vp == 100:
+                self.votePowerProgressBar.setFormat("%.2f %%" % (self.hist_account.vp))
+            else:
+                self.votePowerProgressBar.setFormat("%.2f %%, full in %s" % (self.hist_account.vp, self.hist_account.get_recharge_time_str()))
+        down_vp = self.hist_account.get_downvoting_power()
+        with self.redrawLock:
+            self.downvotePowerProgressBar.setValue(int(down_vp))
+            if down_vp == 100:
+                self.downvotePowerProgressBar.setFormat("%.2f %%" % (down_vp))
+            else:
+                self.downvotePowerProgressBar.setFormat("%.2f %%, full in %s" % (down_vp, self.hist_account.get_recharge_time(starting_voting_power=down_vp)))
+        
         self.votePowerLabel.setText("Vote Power, a 100%% vote is %.3f $" % (self.hist_account.get_voting_value_SBD()))
+        self.downvotePowerLabel.setText("DownVote Power")
         self.STEEMLabel.setText(str(self.hist_account["balance"]))
         self.SBDLabel.setText(str(self.hist_account["sbd_balance"]))
         self.SPLabel.setText("%.3f HP" % self.stm.vests_to_sp(self.hist_account["vesting_shares"]))
@@ -211,6 +267,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             rc_manabar = None
 
     def init_account_hist(self):
+        if self.hist_account is None:
+            return
         b = Blockchain(steem_instance=self.stm)
         latest_block_num = b.get_current_block_num()
         start_block_num = latest_block_num - (20 * 60 * 24)
@@ -240,6 +298,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         
     def append_account_hist(self):
+        if self.hist_account is None:
+            return        
         start_block = self.append_hist_info["start_block"]
         trx_ids = self.append_hist_info["trx_ids"]
         for op in self.hist_account.history(start=start_block - 20, use_block_num=True):
@@ -264,6 +324,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)
 
     def update_account_hist(self):
+        if self.hist_account is None:
+            return        
         votes = []
         daily_curation = 0
         daily_author_SP = 0
@@ -304,8 +366,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "curation_reward":
                 curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
-                self.lastCurationListWidget.insertItem(0, "%s - %.3f SP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
-                hist_item = "%s - %s - %.3f SP for %s" % (op_local_time, op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"]))
+                self.lastCurationListWidget.insertItem(0, "%s - %.3f HP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
+                hist_item = "%s - %s - %.3f HP for %s" % (op_local_time, op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"]))
                 self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "author_reward":
                 sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))

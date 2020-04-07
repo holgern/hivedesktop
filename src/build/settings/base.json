@@ -1,5 +1,5 @@
 {
-    "app_name": "hivedesktop",
+    "app_name": "HiveDesktop",
     "author": "holger80",
     "main_module": "src/main/python/main.py",
     "version": "0.2.7",
