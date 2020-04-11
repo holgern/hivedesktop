@@ -116,7 +116,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         tmpfile = helpers.mktemp(prefix='hivedesktop', suffix='.html')
         
-        self.post = {"body": "##test"}
+        self.post = {"body": "##test", "authorperm": "@test/test"}
         self.thread = threads.MDThread(self, tmpfile)
         
         self.webview.url = tmpfile.as_uri()

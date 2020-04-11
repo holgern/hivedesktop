@@ -4,6 +4,8 @@ PyQtWebEngine==5.13
 PyInstaller==3.4
 markdown
 Pygments
+mdx_smartypants
+jinja2
 beem
 cryptography
 pycryptodome

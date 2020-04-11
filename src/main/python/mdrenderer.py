@@ -10,6 +10,36 @@ import os
 from markdown import Extension
 from markdown.util import etree
 from markdown.inlinepatterns import Pattern
+import jinja2
+
+TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.0/css/bootstrap-combined.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        code, pre {
+            font-family: monospace;
+        }
+        h1 code,
+        h2 code,
+        h3 code,
+        h4 code,
+        h5 code,
+        h6 code {
+            font-size: inherit;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+{{content}}
+</div>
+</body>
+</html>
+"""
 
 # Setup logging
 level = logging.WARNING
@@ -20,15 +50,6 @@ ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s %(levelname)8s %(name)s | %(message)s')
 ch.setFormatter(formatter)
 log.addHandler(ch)
-
-
-theme_items = (
-    ('Bitbucket', 'bitbucket'),
-    ('Dark', 'dark'),
-    ('Github', 'github'),
-    ('Solarized', 'solarized'),
-    ('White on black', 'whiteonblack'),
-)
 
 
 # Urlize markdown extensions taken from https://github.com/r0wb0t/markdown-urlize
@@ -83,12 +104,16 @@ SOURCES = {
   "vimeo": {
     "re": r'vimeo\.com/(?P<vimeo>\d+)',
     "embed": "//player.vimeo.com/video/%s"
-  }
+  },
+  "twitch": {
+    "re": r'twitch\.tv/(?P<twitch>\d+)',
+    "embed": "//player.twitch.tv/video/%s"
+  }  
 }
 
 VIDEO_LINK_RE = r'\!\[(?P<alt>[^\]]*)\]\((https?://(www\.|)({0}|{1})\S*)' \
                  r'(?<!png)(?<!jpg)(?<!jpeg)(?<!gif)\)'\
-                  .format(SOURCES["youtube"]["re"], SOURCES["vimeo"]["re"])
+                  .format(SOURCES["youtube"]["re"], SOURCES["vimeo"]["re"], SOURCES["twitch"]["re"])
 
 class VideoExtension(Extension):
   """
@@ -160,13 +185,12 @@ class MDRenderer(object):
         'http(s);//'), use MDRenderer.render_path() instead.
         """
         log.info("Rendering url '{}'".format(url))
-        theme_contents = self._read_theme(theme)
         r = requests.get(url)
         md_contents = r.text
-        return(self._render_md(md_contents))
+        return(self._render_md(md_contents, theme))
 
     def _render_md(self, contents, theme=None):
-        theme_contents = self._read_theme(theme)
+        # theme_contents = self._read_theme(theme)
         extensions = [
             'toc',
             'tables',
@@ -174,13 +198,15 @@ class MDRenderer(object):
             'footnotes',
             'md_in_html',
             'fenced_code',
+            'smarty',
             # 'markdown_checklist.extension',
             # UrlizeExtension(),
             VideoExtension(),
         ]
-        md = markdown.Markdown(extensions=extensions, encoding='utf8')
+        md = markdown.Markdown(extensions=extensions, output_format="html5")
         md_html = md.convert(contents)
-        html = theme_contents.replace('{{{ contents }}}', md_html)
+        html = jinja2.Template(TEMPLATE).render(content=md_html)
+        # html = theme_contents.replace('{{{ contents }}}', md_html)
 
         return {
             "html": html,
