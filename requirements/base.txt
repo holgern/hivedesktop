@@ -1,6 +1,9 @@
 fbs
 PyQt5==5.13.1
+PyQtWebEngine==5.13
 PyInstaller==3.4
+markdown
+Pygments
 beem
 cryptography
 pycryptodome

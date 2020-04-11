@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer, QRunnab
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QMenu, \
      QSystemTrayIcon, QDialog, QMainWindow, QGridLayout, QCheckBox, QSizePolicy, QSpacerItem, \
-     QLineEdit, QTabWidget, QSplashScreen, QMessageBox, QAction
+     QLineEdit, QTabWidget, QSplashScreen, QMessageBox, QAction, QListWidgetItem
 from ui_mainwindow import Ui_MainWindow
 import hivedesktop_rc
 from threading import Lock
@@ -27,15 +27,30 @@ import argparse
 import re
 import six
 import fix_qt_import_error
-log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.ERROR)
+import dialogs
+import threads
+import widgets
+from mdrenderer import MDRenderer
+import helpers
 
 ORGANIZATION_NAME = 'holger80'
-ORGANIZATION_DOMAIN = 'beempy.com'
 APPLICATION_NAME = 'Hive Desktop'
 SETTINGS_TRAY = 'settings/tray'
 SETTINGS_HIST_INFO = 'settings/hist_info'
 SETTINGS_ACCOUNT = 'settings/account'
+
+# Setup logging
+level = logging.WARNING
+log = logging.getLogger(APPLICATION_NAME)
+log.setLevel(level)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s %(levelname)8s %(name)s | %(message)s')
+ch.setFormatter(formatter)
+log.addHandler(ch)
+
+
+
 
 
 class Worker(QRunnable):
@@ -85,6 +100,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.redrawLock = Lock()
 		
+        self.aboutDialog = dialogs.About(self,
+            copyright='holger80',
+            programName='Hive Desktop',
+            version='0.3.0',
+            website='https://github.com/holgern/hivedesktop',
+            websiteLabel='Github',
+            comments='"Welcome to Hive desktop!\n This is the first release for testing qt5.\n Please vote for holger80 as witness, if you like this :).',
+            licenseName='GPL-3.0',
+            # licenseUrl=helpers.joinpath_to_cwd('LICENSE').as_uri(),
+            authors=('holger80',),
+            # dependencies=[l.strip() for l in requirements.readlines()],
+        )		
+        self.mdrenderer = MDRenderer(str(helpers.joinpath_to_cwd('themes')))
+
+        tmpfile = helpers.mktemp(prefix='hivedesktop', suffix='.html')
+        
+        self.post = {"body": "##test"}
+        self.thread = threads.MDThread(self, tmpfile)
+        
+        self.webview.url = tmpfile.as_uri()
+        
+        
+        self.feedListWidget.currentRowChanged.connect(self.change_displayed_post)
+        
         self.timer = QTimer()
         self.timer.timeout.connect(self.refresh_account_thread)
         
@@ -95,7 +134,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.timer3.timeout.connect(self.update_account_feed_thread)
         
         self.cache_path = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
-      
+        self.feed = []
+        self.post = None
         # Get settings
         settings = QSettings()
         # Get checkbox state with speciying type of checkbox:
@@ -109,6 +149,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if check_state:
             self.timer.start(5000)
             self.timer2.start(15000)
+            self.timer3.start(60000)
         self.accountLineEdit.setText(account_state)
         # connect the slot to the signal by clicking the checkbox to save the state settings
         self.autoRefreshCheckBox.clicked.connect(self.save_check_box_settings)   
@@ -162,6 +203,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.refreshPushButton.clicked.connect(self.update_account_hist_thread)
         self.accountLineEdit.editingFinished.connect(self.update_account_info)
 
+    def triggeredPreview(self):
+        self.authorLabel.setText(self.post["author"])
+        self.titleLabel.setText(self.post["title"])
+        self.thread.start()
+
+    def cbMDThread(self):
+        self.webview.reload()
+
     def closeEvent(self, event):
         if self.tray.isVisible():
             QMessageBox.information(self, "Hive Desktop",
@@ -172,19 +221,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             event.ignore()
 
     def about(self):
-        self.dialog = QDialog()
-        self.dialog.setWindowTitle("About Dialog")
-        gridlayout = QGridLayout()
-        
-        text = QLabel()
-        text.setWordWrap(True)
-        text.setText("Welcome to Hive desktop! This is the first release for testing qt5. Please vote for holger80 as witness, if you like this :).")
-        layout = QVBoxLayout()
-        layout.addWidget(text)
-        
-        gridlayout.addLayout(layout, 0, 0)
-        self.dialog.setLayout(gridlayout)    
-        self.dialog.show()
+        self.aboutDialog.exec_()
 
     # Slot checkbox to save the settings
     def save_check_box_settings(self):
@@ -194,9 +231,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.autoRefreshCheckBox.isChecked():
             self.timer.start(5000)
             self.timer2.start(15000)
+            self.timer3.start(60000)
         else:
             self.timer.stop()
             self.timer2.stop()
+            self.timer3.stop()
         settings.sync()
 
     # Slot checkbox to save the settings
@@ -217,6 +256,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.refresh_account()
         self.init_account_hist()
         self.update_account_hist()
+        self.update_account_feed()
 
 
     def refresh_account_thread(self):
@@ -323,6 +363,49 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         worker = Worker(self.update_account_hist)
         self.threadpool.start(worker)
 
+    def update_account_feed_thread(self):
+        worker = Worker(self.update_account_feed)
+        self.threadpool.start(worker)
+
+    def change_displayed_post(self, row):
+        if len(self.feed) == 0:
+            return
+        #index = self.feedListWidget.currentIndex()
+        #row = index.row()
+        self.post = self.feed[row]
+        
+        self.triggeredPreview()
+
+    def update_account_feed(self):
+        if self.hist_account is None:
+            return
+        updated_feed = self.hist_account.get_account_posts()
+        if len(self.feed) == 0:
+            self.feed = updated_feed
+        else:
+            for post in updated_feed[::-1]:
+                found = False
+                for p in self.feed:
+                    if post["authorperm"] == p["authorperm"]:
+                        found = True
+                if not found:
+                    self.feed.insert(0, post)
+                    self.tray.showMessage(post["author"], post["title"])
+        
+        if self.post is None:
+            self.post = self.feed[0]
+        self.triggeredPreview()
+        self.feedListWidget.currentRowChanged.disconnect(self.change_displayed_post)
+        self.feedListWidget.clear()
+        for post in self.feed[::-1]:
+            post_text = "%s - %s" % (post["author"], post["title"])
+            post_item = QListWidgetItem()
+            post_item.setText(post_text)
+            post_item.setToolTip(post["author"])
+            self.feedListWidget.insertItem(0, post_item)   
+        self.feedListWidget.currentRowChanged.connect(self.change_displayed_post)
+            
+
     def update_account_hist(self):
         if self.hist_account is None:
             return        
@@ -417,7 +500,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     daily_author_SBD += float(sbd_payout)        
         
             
-            reward_text = "Curation reward (last 24 h): %.3f SP\n" % daily_curation
+            reward_text = "Curation reward (last 24 h): %.3f HP\n" % daily_curation
             reward_text += "Author reward (last 24 h):\n"
             reward_text += "%.3f HP - %.3f HIVE - %.3f HBD" % (daily_author_SP, (daily_author_STEEM), (daily_author_SBD))
             self.text2.setText(reward_text)
@@ -426,8 +509,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 if __name__ == '__main__':
     # To ensure that every time you call QSettings not enter the data of your application, 
     # which will be the settings, you can set them globally for all applications
-    QCoreApplication.setApplicationName(ORGANIZATION_NAME)
-    QCoreApplication.setOrganizationDomain(ORGANIZATION_DOMAIN)
+    QCoreApplication.setOrganizationDomain(ORGANIZATION_NAME)
     QCoreApplication.setApplicationName(APPLICATION_NAME)    
     
     appctxt = AppContext()

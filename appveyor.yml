@@ -32,7 +32,7 @@ install:
 - cmd: python -m pip install virtualenv --user
 - cmd: python -m virtualenv env
 - cmd: C:\projects\hivedesktop\env\Scripts\activate
-- cmd: pip install fbs PyQt5==5.13.1 PyInstaller==3.4 beem cryptography pywin32  python-dateutil setuptools
+- cmd: pip install fbs PyQt5==5.13.1 PyQtWebEngine==5.13 PyInstaller==3.4 beem cryptography pywin32  python-dateutil setuptools markdown Pygments
 
 
 build_script:
