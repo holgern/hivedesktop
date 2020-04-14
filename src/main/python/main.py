@@ -97,7 +97,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super(QMainWindow, self).__init__()
         # Set up the user interface from Designer.
         self.setupUi(self)
-
+        
+        self.setAccessibleName("Hive Desktop")
         self.redrawLock = Lock()
         self.updateLock = Lock()
 		
@@ -173,12 +174,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         menu.addSeparator()        
         # aboutAction = menu.addAction("about")
         # aboutAction.triggered.connect(self.about)
-        exitAction = menu.addAction("exit")
+        exitAction = menu.addAction("Exit")
         exitAction.triggered.connect(sys.exit)
+        
         self.tray = QSystemTrayIcon(QIcon(':/icons/icon.ico'))
+        
         self.tray.setContextMenu(menu)
-        self.tray.show()
+        
         self.tray.setToolTip("Hive Desktop!")
+        self.tray.setObjectName("Hive Desktop")
+        self.setWindowTitle("Hive Desktop")
+        self.tray.show()
+        
         splash_pix = QPixmap(':/icons/splash.png')
         splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
         splash.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -205,6 +212,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.refreshPushButton.clicked.connect(self.update_account_hist_thread)
         self.accountLineEdit.editingFinished.connect(self.update_account_info)
         splash.deleteLater()
+        self.tray.showMessage("Ready", "Account history loaded!")
 
     def triggeredPreview(self):
         self.authorLabel.setText(self.post["author"])
@@ -382,30 +390,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #index = self.feedListWidget.currentIndex()
         #row = index.row()
         self.post = self.feed[row]
-        
-        self.triggeredPreview()
+        with self.updateLock:
+            self.triggeredPreview()
 
     def update_account_feed(self):
         if self.hist_account is None:
             return
+        updated_feed = self.hist_account.get_account_posts()
+        if len(self.feed) == 0:
+            self.feed = updated_feed
+        else:
+            for post in updated_feed[::-1]:
+                found = False
+                for p in self.feed:
+                    if post["authorperm"] == p["authorperm"]:
+                        found = True
+                if not found:
+                    self.feed.insert(0, post)
+                    self.tray.showMessage(post["author"], post["title"])
         with self.updateLock:
-            
-            updated_feed = self.hist_account.get_account_posts()
-            if len(self.feed) == 0:
-                self.feed = updated_feed
-            else:
-                for post in updated_feed[::-1]:
-                    found = False
-                    for p in self.feed:
-                        if post["authorperm"] == p["authorperm"]:
-                            found = True
-                    if not found:
-                        self.feed.insert(0, post)
-                        self.tray.showMessage(post["author"], post["title"])
-            
             if self.post is None:
                 self.post = self.feed[0]
                 self.triggeredPreview()
+
             self.feedListWidget.currentRowChanged.disconnect(self.change_displayed_post)
             self.feedListWidget.clear()
             for post in self.feed[::-1]:
@@ -521,7 +528,7 @@ if __name__ == '__main__':
     # To ensure that every time you call QSettings not enter the data of your application, 
     # which will be the settings, you can set them globally for all applications
     QCoreApplication.setOrganizationDomain(ORGANIZATION_NAME)
-    QCoreApplication.setApplicationName(APPLICATION_NAME)    
+    QCoreApplication.setApplicationName(APPLICATION_NAME)
     
     appctxt = AppContext()
     exit_code = appctxt.run()
