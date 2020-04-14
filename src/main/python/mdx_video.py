@@ -50,7 +50,7 @@ class VideoExtension(markdown.Extension):
 
 class Dailymotion(markdown.inlinepatterns.Pattern):
     def handleMatch(self, m):
-        url = '//www.dailymotion.com/embed/video/%s' % m.group('dailymotionid')
+        url = 'https://www.dailymotion.com/embed/video/%s' % m.group('dailymotionid')
         width = self.ext.config['dailymotion_width'][0]
         height = self.ext.config['dailymotion_height'][0]
         return render_iframe(url, width, height)
@@ -58,7 +58,7 @@ class Dailymotion(markdown.inlinepatterns.Pattern):
 
 class Metacafe(markdown.inlinepatterns.Pattern):
     def handleMatch(self, m):
-        url = '//www.metacafe.com/embed/%s/' % m.group('metacafeid')
+        url = 'https://www.metacafe.com/embed/%s/' % m.group('metacafeid')
         width = self.ext.config['metacafe_width'][0]
         height = self.ext.config['metacafe_height'][0]
         return render_iframe(url, width, height)
@@ -67,7 +67,7 @@ class Metacafe(markdown.inlinepatterns.Pattern):
 
 class Vimeo(markdown.inlinepatterns.Pattern):
     def handleMatch(self, m):
-        url = '//player.vimeo.com/video/%s' % m.group('vimeoid')
+        url = 'https://player.vimeo.com/video/%s' % m.group('vimeoid')
         width = self.ext.config['vimeo_width'][0]
         height = self.ext.config['vimeo_height'][0]
         return render_iframe(url, width, height)
@@ -75,7 +75,7 @@ class Vimeo(markdown.inlinepatterns.Pattern):
 
 class Twitch(markdown.inlinepatterns.Pattern):
     def handleMatch(self, m):
-        url = '//player.twitch.tv/video/%s' % m.group('twitchid')
+        url = 'https://player.twitch.tv/video/%s' % m.group('twitchid')
         width = self.ext.config['twitch_width'][0]
         height = self.ext.config['twitch_height'][0]
         return render_iframe(url, width, height)
@@ -91,7 +91,7 @@ class Yahoo(markdown.inlinepatterns.Pattern):
 
 class Youtube(markdown.inlinepatterns.Pattern):
     def handleMatch(self, m):
-        url = '//www.youtube.com/embed/%s' % m.group('youtubeid')
+        url = 'https://www.youtube.com/embed/%s' % m.group('youtubeid')
         width = self.ext.config['youtube_width'][0]
         height = self.ext.config['youtube_height'][0]
         return render_iframe(url, width, height)

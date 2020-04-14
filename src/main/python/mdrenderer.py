@@ -173,6 +173,8 @@ class MDRenderer(object):
             VideoExtension(),
         ]
         md = markdown.Markdown(extensions=extensions, output_format="html5")
+        contents = contents.replace("<center>", "").replace("</center>", "")
+        
         md_html = Markup(md.convert(contents))
         html = jinja2.Template(TEMPLATE).render(content=md_html)
         # html = theme_contents.replace('{{{ contents }}}', md_html)
@@ -191,9 +193,9 @@ class MDRenderer(object):
 
 
 def main():
-    src = '# This is a h1'
+    src = '# This is a h1\nhttps://youtu.be/1EG23YjraF0\n'
     md = MDRenderer(Path.joinpath(Path.cwd(), 'themes'))
-    print(md.render_path(str(Path.joinpath(Path.cwd(), 'template', 'test.md'))))
+    print(md._render_md(src))
 
 
 if __name__ == '__main__':
