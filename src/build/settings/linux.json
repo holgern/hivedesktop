@@ -1,6 +1,6 @@
 {
     "categories": "Utility;",
-    "description": "",
-    "author_email": "",
-    "url": ""
+    "description": "Hive Desktop app to access the HIVE blockchain",
+    "author_email": "holgernahrstaedt@gmx.de",
+    "url": "https://github.com/holgern/hivedesktop"
 }

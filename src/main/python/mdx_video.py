@@ -13,8 +13,10 @@ class VideoExtension(markdown.Extension):
             'metacafe_height': ['248', 'Height for Metacafe videos'],
             'vimeo_width': ['500', 'Width for Vimeo videos'],
             'vimeo_height': ['281', 'Height for Vimeo videos'],
-            'twitch_width': ['500', 'Width for Twitch videos'],
-            'twitch_height': ['281', 'Height for Twitch videos'],            
+            'twitch_width': ['640', 'Width for Twitch videos'],
+            'twitch_height': ['480', 'Height for Twitch videos'],
+            'threespeak_width': ['640', 'Width for ThreeSpeak videos'],
+            'threespeak_height': ['480', 'Height for ThreeSpeak videos'],            
             'yahoo_width': ['624', 'Width for Yahoo! videos'],
             'yahoo_height': ['351', 'Height for Yahoo! videos'],
             'youtube_width': ['560', 'Width for Youtube videos'],
@@ -37,9 +39,11 @@ class VideoExtension(markdown.Extension):
         self.add_inline(md, 'metacafe', Metacafe,
             r'([^(]|^)http://www\.metacafe\.com/watch/(?P<metacafeid>\d+)/?(:?.+/?)')
         self.add_inline(md, 'vimeo', Vimeo,
-            r'([^(]|^)http://(www.|)vimeo\.com/(?P<vimeoid>\d+)\S*')
+            r'([^(]|^)https?://(www.|)vimeo\.com/(?P<vimeoid>\d+)\S*')
         self.add_inline(md, 'twitch', Twitch,
-            r'([^(]|^)http://(www.|)twitch\.tv/(?P<twitchid>\d+)\S*')        
+            r'([^(]|^)https?://(www.|)twitch\.tv/(?P<twitchid>\d+)\S*') 
+        self.add_inline(md, 'threespeak', ThreeSpeak,
+            r'([^(]|^)https?://(www.|)3speak\.online/watch\?\S*v=(?P<threespeakid>\S[^&/]+)')    
         self.add_inline(md, 'yahoo', Yahoo,
             r'([^(]|^)http://screen\.yahoo\.com/.+/?')
         self.add_inline(md, 'youtube', Youtube,
@@ -78,6 +82,14 @@ class Twitch(markdown.inlinepatterns.Pattern):
         url = 'https://player.twitch.tv/video/%s' % m.group('twitchid')
         width = self.ext.config['twitch_width'][0]
         height = self.ext.config['twitch_height'][0]
+        return render_iframe(url, width, height)
+
+
+class ThreeSpeak(markdown.inlinepatterns.Pattern):
+    def handleMatch(self, m):
+        url = 'https://3speak.online/embed?v=%s' % m.group('threespeakid')
+        width = self.ext.config['threespeak_width'][0]
+        height = self.ext.config['threespeak_height'][0]
         return render_iframe(url, width, height)
 
 

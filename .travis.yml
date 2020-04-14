@@ -44,8 +44,8 @@ script:
  - fbs installer
 
 after_success:
- - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then shasum -a 256 ./target/hivedesktop.dmg >> ./target/hivedesktop.dmg.sha256; fi
- - if [[ "$BUILD_LINUX" == "yes" ]]; then sha256sum ./target/hivedesktop.deb >> ./target/hivedesktop.deb.sha256;  fi
+ - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then shasum -a 256 ./target/HiveDesktop.dmg >> ./target/HiveDesktop.dmg.sha256; fi
+ - if [[ "$BUILD_LINUX" == "yes" ]]; then sha256sum ./target/HiveDesktop.deb >> ./target/HiveDesktop.deb.sha256;  fi
 
 deploy:
  provider: releases
