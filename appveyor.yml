@@ -57,8 +57,22 @@ artifacts:
 - path: $(BUILD)
   name: hivedesktop
 - path: $(BUILD).sha256
-  name: hivedesktop sha256 hash
+  name: hivedesktop_sha256
 
 on_finish: 
 - ps: | # update appveyor build version, done last to prevent webhook breakage
     update-appveyorbuild -version $env:AVVER
+
+deploy:
+  provider: GitHub
+  auth_token:
+    secure: 0/vpfUG++7riJDu6Zc0smoTJJJm1t9/qiOzY/IR5vtaFNZNVYmRbEt8jS8LxpnFW
+  artifact: hivedesktop, hivedesktop_sha256
+  draft: true
+  prerelease: true
+  description: "Desktop application for HIVE"
+  tag: $(APPVEYOR_REPO_TAG_NAME) # will not work until tag is pushed
+  on:
+#    configuration: Release    # Debug contains non-redist MS DLLs
+    APPVEYOR_REPO_TAG: true   # deploy on tag push only
+    branch: master   # release from master branch only
