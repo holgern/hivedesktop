@@ -3,6 +3,7 @@
 # L. Penaud (https://github.com/lpenaud/markdown-editor-qt/)
 
 from .thread import Thread
+import markdown
 
 class MDThread(Thread):
     def __init__(self, parent):

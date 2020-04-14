@@ -11,7 +11,16 @@ from markdown import Extension
 from markdown.util import etree
 from markdown.inlinepatterns import Pattern
 from markupsafe import Markup
+import pymdownx
+import pymdownx.extra
+import pymdownx.magiclink
+import pymdownx.betterem
+import pymdownx.inlinehilite
+import pymdownx.snippets
+import pymdownx.superfences
+import pymdownx.highlight
 import jinja2
+from mdx_video import VideoExtension
 
 TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -96,54 +105,6 @@ class UrlizeExtension(markdown.Extension):
 
 
 
-
-SOURCES = {
-  "youtube": {
-    "re": r'youtube\.com/watch\?\S*v=(?P<youtube>[A-Za-z0-9_&=-]+)',
-    "embed": "//www.youtube.com/embed/%s"
-  },
-  "vimeo": {
-    "re": r'vimeo\.com/(?P<vimeo>\d+)',
-    "embed": "//player.vimeo.com/video/%s"
-  },
-  "twitch": {
-    "re": r'twitch\.tv/(?P<twitch>\d+)',
-    "embed": "//player.twitch.tv/video/%s"
-  }  
-}
-
-VIDEO_LINK_RE = r'\!\[(?P<alt>[^\]]*)\]\((https?://(www\.|)({0}|{1})\S*)' \
-                 r'(?<!png)(?<!jpg)(?<!jpeg)(?<!gif)\)'\
-                  .format(SOURCES["youtube"]["re"], SOURCES["vimeo"]["re"], SOURCES["twitch"]["re"])
-
-class VideoExtension(Extension):
-  """
-  Embed Vimeo and Youtube videos in python markdown by using ![alt text](vimeo or youtube url)
-  """
-  def extendMarkdown(self, md, md_globals):
-    link_pattern = VideoLink(VIDEO_LINK_RE, md)
-    link_pattern.ext = self
-    md.inlinePatterns.add('video_embed', link_pattern, '<image_link')
-
-class VideoLink(Pattern):
-  def handleMatch(self, match):
-    alt = match.group("alt").strip()
-    for video_type in SOURCES.keys():
-      video_id = match.group(video_type)
-      if video_id:
-        html = self.make_url(video_id.strip(), video_type, alt)
-        return self.markdown.htmlStash.store(html)
-    return None
-
-  def make_url(self, video_id, video_type, alt):
-    url = SOURCES[video_type]["embed"] % video_id
-    return self.video_iframe(url, alt, video_type=video_type)
-
-  def video_iframe(self, url, alt, width=None, height=None, video_type=None):
-    return u"<iframe class='{2}' src='{0}' alt='{1}' allowfullscreen></iframe>"\
-      .format(url, alt, video_type)
-
-
 class MDRenderer(object):
     """
     Render Markdown to HTML according to a theme.
@@ -200,8 +161,8 @@ class MDRenderer(object):
             #'md_in_html',
             #'fenced_code',
             #'smarty',
-            'nl2br',
-            'codehilite',
+            'markdown.extensions.nl2br',
+            'markdown.extensions.codehilite',
             'pymdownx.extra',
             'pymdownx.magiclink',
             'pymdownx.betterem',

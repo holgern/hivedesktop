@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineSettings
 from PyQt5.Qt import QSizePolicy, QUrl
 from PyQt5.QtGui import QDesktopServices
 
@@ -21,6 +21,9 @@ class WebView(QWebEngineView):
         super(WebView, self).__init__(parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setPage(WebEnginePage(self))
+        self.page().settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        # self.page().settings().setAttribute(QWebEngineSettings.AllowRunningInsecureContent, True)
+        # self.page().settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
         self.__html = ''
 
     @property
