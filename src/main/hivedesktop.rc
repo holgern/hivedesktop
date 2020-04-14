@@ -1,6 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="/">
-   <file>icons/icon.ico</file>
+   <file>icons/Icon.ico</file>
    <file>icons/splash.png</file>
 </qresource>
 </RCC>

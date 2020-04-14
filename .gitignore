@@ -107,3 +107,4 @@ venv.bak/
 *.wpr
 *.wpu
 secret.json
+*.gpg
