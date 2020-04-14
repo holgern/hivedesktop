@@ -106,3 +106,4 @@ venv.bak/
 #wing
 *.wpr
 *.wpu
+secret.json

@@ -22,8 +22,10 @@ class WebView(QWebEngineView):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setPage(WebEnginePage(self))
         self.page().settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        self.page().settings().setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
         # self.page().settings().setAttribute(QWebEngineSettings.AllowRunningInsecureContent, True)
         # self.page().settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        self.page().fullScreenRequested.connect(lambda request: request.accept())
         self.__html = ''
 
     @property

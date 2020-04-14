@@ -99,6 +99,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         self.redrawLock = Lock()
+        self.updateLock = Lock()
 		
         self.aboutDialog = dialogs.About(self,
             copyright='holger80',
@@ -123,7 +124,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.webview.url = tmpfile.as_uri()
         
         
-        self.feedListWidget.currentRowChanged.connect(self.change_displayed_post)
+        self.feedListWidget.currentRowChanged.connect(self.change_displayed_post, Qt.QueuedConnection)
         
         self.timer = QTimer()
         self.timer.timeout.connect(self.refresh_account_thread)
@@ -203,6 +204,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.refreshPushButton.clicked.connect(self.refresh_account_thread)
         self.refreshPushButton.clicked.connect(self.update_account_hist_thread)
         self.accountLineEdit.editingFinished.connect(self.update_account_info)
+        splash.deleteLater()
 
     def triggeredPreview(self):
         self.authorLabel.setText(self.post["author"])
@@ -369,8 +371,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         worker = Worker(self.update_account_feed)
         self.threadpool.start(worker)
 
+    @pyqtSlot(int)
     def change_displayed_post(self, row):
+        if row < 0:
+            return
         if len(self.feed) == 0:
+            return
+        if len(self.feed) <= row:
             return
         #index = self.feedListWidget.currentIndex()
         #row = index.row()
@@ -381,31 +388,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def update_account_feed(self):
         if self.hist_account is None:
             return
-        updated_feed = self.hist_account.get_account_posts()
-        if len(self.feed) == 0:
-            self.feed = updated_feed
-        else:
-            for post in updated_feed[::-1]:
-                found = False
-                for p in self.feed:
-                    if post["authorperm"] == p["authorperm"]:
-                        found = True
-                if not found:
-                    self.feed.insert(0, post)
-                    self.tray.showMessage(post["author"], post["title"])
-        
-        if self.post is None:
-            self.post = self.feed[0]
-        self.triggeredPreview()
-        self.feedListWidget.currentRowChanged.disconnect(self.change_displayed_post)
-        self.feedListWidget.clear()
-        for post in self.feed[::-1]:
-            post_text = "%s - %s" % (post["author"], post["title"])
-            post_item = QListWidgetItem()
-            post_item.setText(post_text)
-            post_item.setToolTip(post["author"])
-            self.feedListWidget.insertItem(0, post_item)   
-        self.feedListWidget.currentRowChanged.connect(self.change_displayed_post)
+        with self.updateLock:
+            
+            updated_feed = self.hist_account.get_account_posts()
+            if len(self.feed) == 0:
+                self.feed = updated_feed
+            else:
+                for post in updated_feed[::-1]:
+                    found = False
+                    for p in self.feed:
+                        if post["authorperm"] == p["authorperm"]:
+                            found = True
+                    if not found:
+                        self.feed.insert(0, post)
+                        self.tray.showMessage(post["author"], post["title"])
+            
+            if self.post is None:
+                self.post = self.feed[0]
+                self.triggeredPreview()
+            self.feedListWidget.currentRowChanged.disconnect(self.change_displayed_post)
+            self.feedListWidget.clear()
+            for post in self.feed[::-1]:
+                post_text = "%s - %s" % (post["author"], post["title"])
+                post_item = QListWidgetItem()
+                post_item.setText(post_text)
+                post_item.setToolTip(post["author"])
+                self.feedListWidget.insertItem(0, post_item)   
+            self.feedListWidget.currentRowChanged.connect(self.change_displayed_post, Qt.QueuedConnection)
             
 
     def update_account_hist(self):
