@@ -114,12 +114,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )		
         self.mdrenderer = MDRenderer(str(helpers.joinpath_to_cwd('themes')))
 
-        tmpfile = helpers.mktemp(prefix='hivedesktop', suffix='.html')
+        # tmpfile = helpers.mktemp(prefix='hivedesktop', suffix='.html')
         
         self.post = {"body": "##test", "authorperm": "@test/test"}
-        self.thread = threads.MDThread(self, tmpfile)
+        self.thread = threads.MDThread(self)
         
-        self.webview.url = tmpfile.as_uri()
+        
+        # self.webview.url = tmpfile.as_uri()
         
         
         self.feedListWidget.currentRowChanged.connect(self.change_displayed_post)
@@ -208,8 +209,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.titleLabel.setText(self.post["title"])
         self.thread.start()
 
-    def cbMDThread(self):
-        self.webview.reload()
+    @pyqtSlot(str)
+    def cbMDThread(self, html):
+        self.webview.setHtml(html)
 
     def closeEvent(self, event):
         if self.tray.isVisible():

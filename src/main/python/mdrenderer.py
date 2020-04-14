@@ -10,6 +10,7 @@ import os
 from markdown import Extension
 from markdown.util import etree
 from markdown.inlinepatterns import Pattern
+from markupsafe import Markup
 import jinja2
 
 TEMPLATE = """<!DOCTYPE html>
@@ -192,26 +193,30 @@ class MDRenderer(object):
     def _render_md(self, contents, theme=None):
         # theme_contents = self._read_theme(theme)
         extensions = [
-            'toc',
-            'tables',
-            'extra',
-            'footnotes',
-            'md_in_html',
-            'fenced_code',
-            'smarty',
+            #'toc',
+            #'tables',
+            #'extra',
+            #'footnotes',
+            #'md_in_html',
+            #'fenced_code',
+            #'smarty',
+            'nl2br',
+            'codehilite',
+            'pymdownx.extra',
+            'pymdownx.magiclink',
+            'pymdownx.betterem',
+            'pymdownx.inlinehilite',
+            'pymdownx.snippets',
             # 'markdown_checklist.extension',
             # UrlizeExtension(),
             VideoExtension(),
         ]
         md = markdown.Markdown(extensions=extensions, output_format="html5")
-        md_html = md.convert(contents)
+        md_html = Markup(md.convert(contents))
         html = jinja2.Template(TEMPLATE).render(content=md_html)
         # html = theme_contents.replace('{{{ contents }}}', md_html)
 
-        return {
-            "html": html,
-            "toc": md.toc_tokens
-        }
+        return html
 
     def _read_theme(self, theme):
         """

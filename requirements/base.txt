@@ -5,7 +5,11 @@ PyInstaller==3.4
 markdown
 Pygments
 mdx_smartypants
+dataset
+deepdish
 jinja2
+markupsafe
+pymdown-extensions
 beem
 cryptography
 pycryptodome
