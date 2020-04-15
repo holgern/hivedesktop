@@ -19,6 +19,8 @@ import pymdownx.inlinehilite
 import pymdownx.snippets
 import pymdownx.superfences
 import pymdownx.highlight
+import pymdownx.smartsymbols
+import pymdownx.striphtml
 import jinja2
 from hivedesktop.mdx_video import VideoExtension
 from hivedesktop.mdx_url import UrlExtension

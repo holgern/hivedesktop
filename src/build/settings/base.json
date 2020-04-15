@@ -2,7 +2,7 @@
     "app_name": "HiveDesktop",
     "author": "holger80",
     "main_module": "src/main/python/hivedesktop/main.py",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "url": "https://github.com/holgern/hivedesktop",
     "hidden_imports": [
         "scrypt",
