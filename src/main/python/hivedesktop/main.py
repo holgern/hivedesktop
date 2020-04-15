@@ -33,6 +33,7 @@ from hivedesktop import threads
 from hivedesktop import widgets
 from hivedesktop.mdrenderer import MDRenderer
 from hivedesktop import helpers
+from hivedesktop import database
 
 ORGANIZATION_NAME = 'holger80'
 APPLICATION_NAME = 'Hive Desktop'
@@ -139,6 +140,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.timer3.timeout.connect(self.update_account_feed_thread)
         
         self.cache_path = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
+        self.db_type = "shelve"
         self.feed = []
         self.post = None
         # Get settings
@@ -178,7 +180,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # aboutAction = menu.addAction("about")
         # aboutAction.triggered.connect(self.about)
         exitAction = menu.addAction("Exit")
-        exitAction.triggered.connect(sys.exit)
+        exitAction.triggered.connect(self.closeApp)
         
         self.tray = QSystemTrayIcon(QIcon(':/icons/icon.ico'))
         
@@ -235,6 +237,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.hide()
             event.ignore()
 
+    def closeApp(self):
+        self.store_account_hist()
+        sys.exit()
+
     def about(self):
         self.aboutDialog.exec_()
 
@@ -264,6 +270,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def update_account_info(self):
         if self.hist_account is None or self.hist_account["name"] != self.accountLineEdit.text():
+            self.store_account_hist()
             try:
                 self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
             except:
@@ -271,11 +278,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.init_new_account()
 
     def init_new_account(self):
+        if self.hist_account is not None:
+            self.db = database.Database(self.db_type, self.cache_path, self.hist_account["name"])
         self.refresh_account()
         self.init_account_hist()
         self.update_account_hist()
         self.update_account_feed()
-
+        self.store_account_hist()
 
     def refresh_account_thread(self):
         worker = Worker(self.refresh_account)
@@ -324,6 +333,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except:
             rc_manabar = None
 
+    def store_account_hist(self):
+        if self.hist_account is None:
+            return
+        self.db.store_account_hist(self.account_history, self.append_hist_info["trx_ids"])
+
     def init_account_hist(self):
         if self.hist_account is None:
             return
@@ -333,6 +347,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.account_history = []
         self.account_hist_info = {"start_block": 0, "trx_ids": []}
         self.append_hist_info = {"start_block": 0, "trx_ids": []}
+
+        if self.db.has_account_hist():
+            self.account_history, trx_ids = self.db.load_account_hist()
+            if self.account_history[0]["block"] <= start_block_num:
+                self.append_hist_info["start_block"] = self.account_history[-1]["block"]
+                self.append_hist_info["trx_ids"] = trx_ids
+                return
+        
+
         self.lastUpvotesListWidget.clear()
         self.lastCurationListWidget.clear()
         self.lastAuthorListWidget.clear()
@@ -468,13 +491,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if op["type"] == "vote":
                 if op["voter"] == self.hist_account["name"]:
                     continue
-                self.lastUpvotesListWidget.insertItem(0,"%s - %s (%.2f %%) upvote %s" % (op_timedelta, op["voter"], op["weight"] / 100, op["permlink"]))
-                hist_item = "%s - %s - %s (%.2f %%) upvote %s" % (op_local_time, op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                if op["weight"] >= 0:
+                    
+                    self.lastUpvotesListWidget.insertItem(0,"%s - %s (%.2f %%) upvote %s" % (op_timedelta, op["voter"], op["weight"] / 100, op["permlink"]))
+                    hist_item = "%s - %s - %s (%.2f %%) upvote %s" % (op_local_time, op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                    tray_item = "%s - %s (%.2f %%) upvote %s" % (op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                else:
+                    hist_item = "%s - %s - %s (%.2f %%) downvote %s" % (op_local_time, op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                    tray_item = "%s - %s (%.2f %%) downvote %s" % (op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                    
                 self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "curation_reward":
                 curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
                 self.lastCurationListWidget.insertItem(0, "%s - %.3f HP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
                 hist_item = "%s - %s - %.3f HP for %s" % (op_local_time, op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"]))
+                tray_item = "%s - %.3f HP for %s" % (op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"]))
                 self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "author_reward":
                 sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
@@ -482,26 +513,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 sp_payout = self.stm.vests_to_sp(Amount(op["vesting_payout"], steem_instance=self.stm))
                 self.lastAuthorListWidget.insertItem(0, "%s - %s %s %.3f HP for %s" % (op_timedelta, str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
                 hist_item = "%s - %s - %s %s %.3f SP for %s" % (op_local_time, op["type"], str(sbd_payout), str(steem_payout), sp_payout, op["permlink"])
+                tray_item = "%s - %s %s %.3f SP for %s" % (op["type"], str(sbd_payout), str(steem_payout), sp_payout, op["permlink"])
                 self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "custom_json":
                 hist_item = "%s - %s - %s" % (op_local_time, op["type"], op["id"])
+                tray_item = "%s - %s" % (op["type"], op["id"])
                 self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "transfer":
                 hist_item = "%s - %s - %s from %s" % (op_local_time, op["type"], str(Amount(op["amount"], steem_instance=self.stm)), op["from"])
+                tray_item = "%s - %s from %s" % (op["type"], str(Amount(op["amount"], steem_instance=self.stm)), op["from"])
                 self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "comment":
                 comment_type = "post"
                 if op["parent_author"] != "":
                     hist_item = "%s - comment on %s - %s from %s" % (op_local_time, construct_authorperm(op["parent_author"], op["parent_permlink"]), op["title"], op["author"])
+                    tray_item = "comment from %s: %s on %s" % (op["author"], op["body"][:100], op["title"])
                 else:
                     hist_item = "%s - post - %s from %s" % (op_local_time, op["title"], op["author"])
+                    tray_item = "post from %s: %s" % (op["author"], op["title"])
                 self.accountHistListWidget.insertItem(0, hist_item)
             else:
                 hist_item = "%s - %s" % (op_local_time, op["type"])
+                tray_item = "%s" % (op["type"])
                 self.accountHistListWidget.insertItem(0, hist_item)
             
             if self.accountHistNotificationCheckBox.isChecked() and not first_call:
-                self.tray.showMessage(self.hist_account["name"], hist_item)
+                self.tray.showMessage(self.hist_account["name"], tray_item)
 
         if new_op_found:
             self.account_hist_info["start_block"] = start_block

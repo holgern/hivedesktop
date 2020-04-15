@@ -6,12 +6,11 @@ from beem.account import Account
 from beem.utils import formatTimeString
 import re
 import os
+from PyQt5.QtCore import QStandardPaths
 from beem.instance import set_shared_steem_instance
 from beem.nodelist import NodeList
 from beem import Steem
 import dataset
-#from sqlitedict import SqliteDict
-from contextlib import closing
 import deepdish as dd
 
 def save(filename, myobj):
@@ -53,73 +52,103 @@ def load(filename):
     f.close()
     return myobj
 
-def get_acc_hist(account, start=None, use_block_num=True):
-    acc = Account(account)
-    ops = []
-    for op in acc.history(start=start, use_block_num=use_block_num):
-        ops.append(op)
-    return ops
 
-def store_account_hist(db_type, path, account, ops):
-    if db_type == "shelve":
-        with shelve.open(path + "account-history-%s.shelf" % (account)) as db:
-            db['ops'] = ops
-    elif db_type == "pickle":
-        db = {"ops": ops} 
-        save(path + "account-history-%s.pickle" % (account), db)
-    elif db_type == "deepdish":
-        db = {"ops": ops}
-        dd.io.save(path + "account-history-%s.h5" % (account), db, compression=None)
-    elif db_type == "sqlite":
-        db = dataset.connect('sqlite:///%s' % (path + "account-history.db"))
-        table = db[account]
-        table.insert()
+class Database(object):
+    def __init__(self, db_type, path, account):
+        self.db_type = db_type
+        self.path = path
+        self.account = account
 
+    def get_acc_hist(self, start=None, use_block_num=True):
+        acc = Account(self.account)
+        ops = []
+        for op in acc.history(start=start, use_block_num=use_block_num):
+            ops.append(op)
+        return ops
 
-def load_account_hist(db_type, path, account):
-    if db_type == "shelve":
-        with shelve.open(path + "account-history-%s.shelf" % (account)) as db:
-            ops = db['ops']
-    elif db_type == "pickle":
-        ops = load(path + "account-history-%s.pickle" % (account))['ops']
-    elif db_type == "deepdish":
-        ops = dd.io.load(path + "account-history-%s.pickle" % (account))['ops']
-    elif db_type == "sqlite":
-        db = dataset.connect('sqlite:///%s' % (path + "account-history.db"))
-        table = db[account]
-        #table.insert()     
-    return ops
-
-def append_account_hist(db_type, path, account, new_ops):
-    if db_type == "shelve":
-        with shelve.open(path + "account-history-%s.shelf" % (account), writeback=True) as db:
-            db['ops'].extend(new_ops)
-    elif db_type == "pickle":
-        db = load_account_hist(db_type, path, account)
-        db['ops'].extend(new_ops)
-        store_account_hist(db_type, path, account, db)
-    elif db_type == "deepdish":
-        db = load_account_hist(db_type, path, account)
-        db['ops'].extend(new_ops)
-        store_account_hist(db_type, path, account, db)    
-    elif db_type == "sqlite":
-        db = dataset.connect('sqlite:///%s' % (path + "account-history.db"))
-        table = db[account]
-        table.append()       
-
-def has_account_hist(db_type, path, account):
-    if db_type == "shelve":
-        return os.path.isfile(path+"account-history-%s.shelf" % (account))
-    elif db_type == "pickle":
-        return os.path.isfile(path+"account-history-%s.pickle" % (account))
-    elif db_type == "deepdish":
-        return os.path.isfile(path+"account-history-%s.h5" % (account))    
-    elif db_type == "sqlite":
-        db = dataset.connect('sqlite:///%s' % (path + "account-history.db"))
-        if account in db:
-            return True
-        else:
-            return False
+    def get_filename(self):
+        if self.db_type == "shelve":
+            return os.path.join(self.path, "account-history-%s.shelf" % (self.account))
+        elif self.db_type == "pickle":
+            return os.path.join(self.path, "account-history-%s.pickle" % (self.account))
+        elif self.db_type == "deepdish":
+            return os.path.join(self.path, "account-history-%s.h5" % (self.account))
+        elif self.db_type == "sqlite":
+            return os.path.join(self.path, "account-history.db")
+    
+    def store_account_hist(self, ops, trx):
+        filename = self.get_filename()
+        if self.db_type == "shelve":
+            with shelve.open(filename) as db:
+                db['ops'] = ops
+                db['trx'] = trx
+        elif self.db_type == "pickle":
+            db = {"ops": ops, "trx": trx} 
+            save(filename, db)
+        elif self.db_type == "deepdish":
+            db = {"ops": ops, "trx": trx}
+            dd.io.save(filename, db, compression=None)
+        elif self.db_type == "sqlite":
+            db = dataset.connect('sqlite:///%s' % (filename))
+            table = db[self.account]
+            table.insert()
+    
+    def load_account_hist(self):
+        filename = self.get_filename()
+        if self.db_type == "shelve":
+            with shelve.open(filename) as db:
+                ops = db['ops']
+                trx = db['trx']
+        elif self.db_type == "pickle":
+            data = load(filename)
+            ops = data['ops']
+            trx = data['trx']
+        elif self.db_type == "deepdish":
+            data = dd.io.load(filename)
+            ops = data['ops']
+            trx = data['trx']
+            
+        elif self.db_type == "sqlite":
+            db = dataset.connect('sqlite:///%s' % (filename))
+            table = db[self.account]
+            #table.insert()     
+        return ops, trx
+    
+    def append_account_hist(self, new_ops, new_trx):
+        filename = self.get_filename()
+        if self.db_type == "shelve":
+            with shelve.open(filename, writeback=True) as db:
+                db['ops'].extend(new_ops)
+                db['trx'].extend(new_trx)
+        elif self.db_type == "pickle":
+            ops, trx = self.load_account_hist()
+            ops.extend(new_ops)
+            trx.extend(new_trx)
+            self.store_account_hist(ops, trx)
+        elif db_type == "deepdish":
+            ops, trx = self.load_account_hist()
+            ops.extend(new_ops)
+            trx.extend(new_trx)
+            self.store_account_hist(ops, trx)    
+        elif db_type == "sqlite":
+            db = dataset.connect('sqlite:///%s' % (filename))
+            table = db[self.account]
+            table.append()       
+    
+    def has_account_hist(self):
+        filename = self.get_filename()
+        if self.db_type == "shelve":
+            return os.path.isfile(filename + '.dat')
+        elif self.db_type == "pickle":
+            return os.path.isfile(filename)
+        elif self.db_type == "deepdish":
+            return os.path.isfile(filename)    
+        elif self.db_type == "sqlite":
+            db = dataset.connect('sqlite:///%s' % (filename))
+            if self.account in db:
+                return True
+            else:
+                return False
 
 
 if __name__ == "__main__":
@@ -129,15 +158,19 @@ if __name__ == "__main__":
     set_shared_steem_instance(stm)
     account_name = "holger80"
     account = Account(account_name, steem_instance=stm)
-    path = "./"
+    path = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
+    print(path)
     db_type = "shelve"
+    db = Database(db_type, path, account_name)
 
-    if not has_account_hist(db_type, path, account_name):
-
-        ops = get_acc_hist(account_name)
-        store_account_hist(db_type, path, account_name, ops)
+    if not db.has_account_hist():
+        print("new account")
+        ops = db.get_acc_hist()
+        db.store_account_hist(ops)
     else:
-        ops = load_account_hist(db_type, path, account_name)
+        print("loading db")
+        ops = db.load_account_hist()
+        print("finished")
             
         # Go trough all transfer ops
         cnt = 0
@@ -194,10 +227,10 @@ if __name__ == "__main__":
             cnt += 1
         if len(data) > 0:
             # print(op["timestamp"])
-            append_account_hist(db_type, path, account["name"], data)
+            db.append_account_hist(data)
     
     print("checking %s " % account_name)
-    ops = load_account_hist(db_type, path, account["name"])
+    ops = db.load_account_hist()
     last_op = {}
     last_op["index"] = -1
     last_op["timestamp"] = '2000-12-29T10:07:45'
