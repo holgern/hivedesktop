@@ -3,7 +3,7 @@
 # L. Penaud (https://github.com/lpenaud/markdown-editor-qt/)
 
 from PyQt5.QtCore import QThread, pyqtSignal
-import helpers
+from hivedesktop import helpers
 
 
 class Thread(QThread):

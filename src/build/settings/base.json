@@ -1,8 +1,17 @@
 {
     "app_name": "HiveDesktop",
     "author": "holger80",
-    "main_module": "src/main/python/main.py",
+    "main_module": "src/main/python/hivedesktop/main.py",
     "version": "0.3.1",
     "url": "https://github.com/holgern/hivedesktop",
-	"hidden_imports": ["scrypt", "_scrypt", "websocket", "pylibscrypt", "cffi", "cryptography.hazmat.backends.openssl", "cryptography", "pkg_resources.py2_warn"]
+    "hidden_imports": [
+        "scrypt",
+        "_scrypt",
+        "websocket",
+        "pylibscrypt",
+        "cffi",
+        "cryptography.hazmat.backends.openssl",
+        "cryptography",
+        "pkg_resources.py2_warn"
+    ]
 }

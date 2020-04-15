@@ -23,7 +23,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -458,13 +458,13 @@
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionOptions"/>
     <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menuAccount">
     <property name="title">
      <string>Account</string>
     </property>
-    <addaction name="actionadd"/>
    </widget>
    <addaction name="menuAccount"/>
    <addaction name="menuAbout"/>
@@ -480,12 +480,17 @@
     <string>add</string>
    </property>
   </action>
+  <action name="actionOptions">
+   <property name="text">
+    <string>Options</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
    <class>WebView</class>
    <extends>QWidget</extends>
-   <header>widgets/webview.h</header>
+   <header>hivedesktop/widgets/webview.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

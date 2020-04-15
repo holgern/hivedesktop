@@ -13,6 +13,8 @@ class VideoExtension(markdown.Extension):
             'metacafe_height': ['248', 'Height for Metacafe videos'],
             'vimeo_width': ['500', 'Width for Vimeo videos'],
             'vimeo_height': ['281', 'Height for Vimeo videos'],
+            'vimm_width': ['480', 'Width for Vimm videos'],
+            'vimm_height': ['270', 'Height for Vimm videos'],            
             'twitch_width': ['640', 'Width for Twitch videos'],
             'twitch_height': ['480', 'Height for Twitch videos'],
             'threespeak_width': ['640', 'Width for ThreeSpeak videos'],
@@ -40,6 +42,8 @@ class VideoExtension(markdown.Extension):
             r'([^(]|^)http://www\.metacafe\.com/watch/(?P<metacafeid>\d+)/?(:?.+/?)')
         self.add_inline(md, 'vimeo', Vimeo,
             r'([^(]|^)https?://(www.|)vimeo\.com/(?P<vimeoid>\d+)\S*')
+        self.add_inline(md, 'vimm', Vimm,
+            r'([^(]|^)https?://(www.|)vimm\.tv/(?P<vimmid>\d+)\S*')        
         self.add_inline(md, 'twitch', Twitch,
             r'([^(]|^)https?://(www.|)twitch\.tv/(?P<twitchid>\d+)\S*') 
         self.add_inline(md, 'threespeak', ThreeSpeak,
@@ -74,6 +78,14 @@ class Vimeo(markdown.inlinepatterns.Pattern):
         url = 'https://player.vimeo.com/video/%s' % m.group('vimeoid')
         width = self.ext.config['vimeo_width'][0]
         height = self.ext.config['vimeo_height'][0]
+        return render_iframe(url, width, height)
+
+
+class Vimm(markdown.inlinepatterns.Pattern):
+    def handleMatch(self, m):
+        url = 'https://www.vimm.tv/include/%s' % m.group('vimmid')
+        width = self.ext.config['vimm_width'][0]
+        height = self.ext.config['vimm_height'][0]
         return render_iframe(url, width, height)
 
 

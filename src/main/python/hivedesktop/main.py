@@ -5,8 +5,8 @@ from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QMenu, \
      QSystemTrayIcon, QDialog, QMainWindow, QGridLayout, QCheckBox, QSizePolicy, QSpacerItem, \
      QLineEdit, QTabWidget, QSplashScreen, QMessageBox, QAction, QListWidgetItem
-from ui_mainwindow import Ui_MainWindow
-import hivedesktop_rc
+from hivedesktop.ui_mainwindow import Ui_MainWindow
+from hivedesktop import hivedesktop_rc
 from threading import Lock
 from beem import Steem
 from beem.comment import Comment
@@ -26,12 +26,12 @@ import io
 import argparse
 import re
 import six
-import fix_qt_import_error
-import dialogs
-import threads
-import widgets
-from mdrenderer import MDRenderer
-import helpers
+from hivedesktop import fix_qt_import_error
+from hivedesktop import dialogs
+from hivedesktop import threads
+from hivedesktop import widgets
+from hivedesktop.mdrenderer import MDRenderer
+from hivedesktop import helpers
 
 ORGANIZATION_NAME = 'holger80'
 APPLICATION_NAME = 'Hive Desktop'
@@ -101,7 +101,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setAccessibleName("Hive Desktop")
         self.redrawLock = Lock()
         self.updateLock = Lock()
-		
+        
+        self.optionsDialog = dialogs.Options(self)
         self.aboutDialog = dialogs.About(self,
             copyright='holger80',
             programName='Hive Desktop',
@@ -159,6 +160,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.accountHistNotificationCheckBox.clicked.connect(self.save_check_box_settings)  
         self.accountLineEdit.editingFinished.connect(self.save_account_settings)
         self.actionAbout.triggered.connect(self.about)
+        self.actionOptions.triggered.connect(self.options)
         self.threadpool = QThreadPool()
         
         self.minimizeAction = QAction("Mi&nimize", self, triggered=self.hide)
@@ -234,6 +236,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def about(self):
         self.aboutDialog.exec_()
+
+    def options(self):
+        self.optionsDialog.exec_()
 
     # Slot checkbox to save the settings
     def save_check_box_settings(self):
@@ -522,9 +527,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             reward_text += "Author reward (last 24 h):\n"
             reward_text += "%.3f HP - %.3f HIVE - %.3f HBD" % (daily_author_SP, (daily_author_STEEM), (daily_author_SBD))
             self.text2.setText(reward_text)
-  
 
-if __name__ == '__main__':
+def main():
     # To ensure that every time you call QSettings not enter the data of your application, 
     # which will be the settings, you can set them globally for all applications
     QCoreApplication.setOrganizationDomain(ORGANIZATION_NAME)
@@ -532,4 +536,7 @@ if __name__ == '__main__':
     
     appctxt = AppContext()
     exit_code = appctxt.run()
-    sys.exit(exit_code)
+    sys.exit(exit_code)    
+
+if __name__ == '__main__':
+    main()

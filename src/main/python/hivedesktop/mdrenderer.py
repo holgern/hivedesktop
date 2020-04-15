@@ -20,7 +20,7 @@ import pymdownx.snippets
 import pymdownx.superfences
 import pymdownx.highlight
 import jinja2
-from mdx_video import VideoExtension
+from hivedesktop.mdx_video import VideoExtension
 
 TEMPLATE = """<!DOCTYPE html>
 <html>
