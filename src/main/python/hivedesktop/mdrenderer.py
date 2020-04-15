@@ -21,6 +21,7 @@ import pymdownx.superfences
 import pymdownx.highlight
 import jinja2
 from hivedesktop.mdx_video import VideoExtension
+from hivedesktop.mdx_url import UrlExtension
 
 TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -62,48 +63,6 @@ ch.setFormatter(formatter)
 log.addHandler(ch)
 
 
-# Urlize markdown extensions taken from https://github.com/r0wb0t/markdown-urlize
-# Copyright: 2-clause BSD license.
-# Covers all Urlize* classes.
-
-# Global Vars
-URLIZE_RE = '(%s)' % '|'.join([
-    r'<(?:f|ht)tps?://[^>]*>',
-    r'\b(?:f|ht)tps?://[^)<>\s]+[^.,)<>\s]',
-    r'\bwww\.[^)<>\s]+[^.,)<>\s]',
-    r'[^(<\s]+\.(?:com|net|org)\b',
-])
-
-class UrlizePattern(markdown.inlinepatterns.Pattern):
-    """ Return a link Element given an autolink (`http://example/com`). """
-    def handleMatch(self, m):
-        url = m.group(2)
-
-        if url.startswith('<'):
-            url = url[1:-1]
-
-        text = url
-
-        if not url.split('://')[0] in ('http','https','ftp'):
-            if '@' in url and not '/' in url:
-                url = 'mailto:' + url
-            else:
-                url = 'http://' + url
-
-        el = markdown.util.etree.Element("a")
-        el.set('href', url)
-        el.text = markdown.util.AtomicString(text)
-        return el
-
-
-class UrlizeExtension(markdown.Extension):
-    """ Urlize Extension for Python-Markdown. """
-
-    def extendMarkdown(self, md, md_globals):
-        """ Replace autolink with UrlizePattern """
-        md.inlinePatterns['autolink'] = UrlizePattern(URLIZE_RE, md)
-
-
 
 class MDRenderer(object):
     """
@@ -136,7 +95,7 @@ class MDRenderer(object):
         'http(s);//'), use MDRenderer.render_url() instead.
         """
         log.info("Rendering path '{}' with theme '{}'".format(path, theme))
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             md_contents = f.read()
         return(self._render_md(md_contents, theme))
 
@@ -164,22 +123,43 @@ class MDRenderer(object):
             'markdown.extensions.nl2br',
             'markdown.extensions.codehilite',
             'pymdownx.extra',
-            'pymdownx.magiclink',
             'pymdownx.betterem',
             'pymdownx.inlinehilite',
-            'pymdownx.snippets',
+            'pymdownx.smartsymbols',
             # 'markdown_checklist.extension',
-            # UrlizeExtension(),
+            UrlExtension(),
             VideoExtension(),
+            'pymdownx.striphtml'
         ]
+
         md = markdown.Markdown(extensions=extensions, output_format="html5")
-        contents = contents.replace("<center>", "").replace("</center>", "")
+        contents = self._add_markdown_tag(contents)
         
         md_html = Markup(md.convert(contents))
         html = jinja2.Template(TEMPLATE).render(content=md_html)
         # html = theme_contents.replace('{{{ contents }}}', md_html)
 
         return html
+
+    def _add_markdown_tag(self, contents):
+        contents = contents.replace('<div class=\\"text-justify\\">', '<div class="text-justify" markdown="block">')
+        contents = contents.replace('<div class=\\"pull-left\\">', '<div class="pull-left" markdown="block">')
+        contents = contents.replace('<div class=\\"pull-right\\">', '<div class="pull-right" markdown="block">')
+        contents = contents.replace('<div class=\\"phishy\\">', '<div class="phishy" markdown="block">')
+        contents = contents.replace("<H1>", '<H1 markdown="block">')
+        contents = contents.replace("<H2>", '<H2 markdown="block">')
+        contents = contents.replace("<H3>", '<H3 markdown="block">')
+        contents = contents.replace("<H4>", '<H4 markdown="block">')
+        contents = contents.replace("<H5>", '<H5 markdown="block">')
+        contents = contents.replace("<H6>", '<H6 markdown="block">')
+        contents = contents.replace("<h1>", '<h1 markdown="block">')
+        contents = contents.replace("<h2>", '<h2 markdown="block">')
+        contents = contents.replace("<h3>", '<h3 markdown="block">')
+        contents = contents.replace("<h4>", '<h4 markdown="block">')
+        contents = contents.replace("<h5>", '<h5 markdown="block">')
+        contents = contents.replace("<h6>", '<h6 markdown="block">')        
+        contents = contents.replace('\\"', '"')
+        return contents
 
     def _read_theme(self, theme):
         """
@@ -193,9 +173,20 @@ class MDRenderer(object):
 
 
 def main():
-    src = '# This is a h1\nhttps://youtu.be/abc\n\nhttps://3speak.online/watch?v=taskmaster4450/mhggbzju'
     md = MDRenderer(Path.joinpath(Path.cwd(), 'themes'))
-    print(md._render_md(src))
+    md_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test01.md')
+    md2_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test01_1.md')
+    html_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test01.html')
+    
+    with open(md_file1, 'r', encoding='utf-8') as f:
+        contents = f.read()
+    with open(md2_file1, 'w+', encoding='utf-8') as f:
+        f.write(md._add_markdown_tag(contents))     
+    
+    print(md_file1)
+    
+    with open(html_file1, 'w+', encoding='utf-8') as f:
+        f.write(md.render_path(md_file1)) 
 
 
 if __name__ == '__main__':

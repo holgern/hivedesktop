@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplicat
      QLineEdit, QTabWidget, QSplashScreen, QMessageBox, QAction, QListWidgetItem
 from hivedesktop.ui_mainwindow import Ui_MainWindow
 from hivedesktop import hivedesktop_rc
+from hivedesktop import VERSION
 from threading import Lock
 from beem import Steem
 from beem.comment import Comment
@@ -106,7 +107,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.aboutDialog = dialogs.About(self,
             copyright='holger80',
             programName='Hive Desktop',
-            version='0.3.0',
+            version=VERSION,
             website='https://github.com/holgern/hivedesktop',
             websiteLabel='Github',
             comments='"Welcome to Hive desktop!\n This is the first release for testing qt5.\n Please vote for holger80 as witness, if you like this :).',

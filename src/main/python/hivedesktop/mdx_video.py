@@ -47,7 +47,7 @@ class VideoExtension(markdown.Extension):
         self.add_inline(md, 'twitch', Twitch,
             r'([^(]|^)https?://(www.|)twitch\.tv/(?P<twitchid>\d+)\S*') 
         self.add_inline(md, 'threespeak', ThreeSpeak,
-            r'([^(]|^)https?://(www.|)3speak\.online/watch\?\S*v=(?P<threespeakid>\S[^&/]+)')    
+            r'([^(]|^)https?://(www.|)3speak\.online/watch\?\S*v=(?P<threespeakid>[a-zA-Z0-9.-/]+)')
         self.add_inline(md, 'yahoo', Yahoo,
             r'([^(]|^)http://screen\.yahoo\.com/.+/?')
         self.add_inline(md, 'youtube', Youtube,

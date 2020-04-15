@@ -35,7 +35,16 @@ class WebView(QWebEngineView):
     @html.setter
     def html(self, html):
         self.__html = html
+        self.setEnabled(False)          
         self.setHtml(html)
+        self.setEnabled(True)
+
+    def updateFontSettings(self):
+        settings = self.settings()
+        #settings.setFontFamily(QWebEngineSettings.StandardFont,
+        #                       globalSettings.font.family())
+        #settings.setFontSize(QWebEngineSettings.DefaultFontSize,
+        #                     globalSettings.font.pointSize())
 
     @property
     def url(self):
