@@ -197,7 +197,7 @@ if __name__ == "__main__":
             append_account_hist(db_type, path, account["name"], data)
     
     print("checking %s " % account_name)
-    ops = load_account_hist(db_type, path, account)
+    ops = load_account_hist(db_type, path, account["name"])
     last_op = {}
     last_op["index"] = -1
     last_op["timestamp"] = '2000-12-29T10:07:45'
@@ -206,13 +206,13 @@ if __name__ == "__main__":
     for op in ops:
         lastest_index += 1
         if (op["index"] - last_op["index"]) != 1:
-            print("error %s %d %d" % (account, op["index"], last_op["index"]))
+            print("error %s %d %d" % (account_name, op["index"], last_op["index"]))
             if error_index < 0:
                 error_index = lastest_index - 1                    
         if (formatTimeString(op["timestamp"]) < formatTimeString(last_op["timestamp"])):
             if error_index < 0:
                 error_index = lastest_index - 1
-            print("error %s %s %s" % (account, op["timestamp"], last_op["timestamp"]))
+            print("error %s %s %s" % (account_name, op["timestamp"], last_op["timestamp"]))
         last_op = op
     #if error_index > -1:
-    #    store_account_hist(db_type, path, account, ops[:error_index])
+    #    store_account_hist(db_type, path, account_name, ops[:error_index])

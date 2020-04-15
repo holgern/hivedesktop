@@ -36,6 +36,7 @@ setuptools.setup(
     url="https://github.com/holgern/hivedesktop",
     license='GPLv3',
     package_dir={"": PY_SRC_PATH},
+    data_files = [("", ["LICENSE"])],
     packages=setuptools.find_packages(where=PY_SRC_PATH),
     python_requires='>=3',
     classifiers=[
