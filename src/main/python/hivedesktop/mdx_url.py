@@ -14,13 +14,13 @@ class UrlExtension(markdown.Extension):
 
     def extendMarkdown(self, md, md_globals):
         self.add_inline(md, 'hashtag', Hashtag,
-            r'([^(]|^)#(?P<hashid>[a-zA-Z0-9.-]+)')
+            r'([^(/]|^)#(?P<hashid>[a-zA-Z0-9.-]+)')
         self.add_inline(md, 'user', User,
-            r'([^(]|^)@(?P<userid>[a-zA-Z0-9.-]+)')
+            r'([^(/]|^)@(?P<userid>[a-zA-Z0-9.-]+)')
         self.add_inline(md, 'steemitimage', SteemitImage,
-            r'([^(]|^)https?://(www.|)steemitimages\.com/(?P<steemitimageid>[a-zA-Z0-9.-/%]+)')
+            r'([^(/]|^)https?://(www.|)steemitimages\.com/(?P<steemitimageid>[a-zA-Z0-9.-/%:_]+)')
         self.add_inline(md, 'giphy', Giphy,
-            r'([^(]|^)https?://(www.|)media\.giphy\.com/media/(?P<giphyid>[a-zA-Z0-9.-/%]+)')        
+            r'([^(/]|^)https?://(www.|)media\.giphy\.com/media/(?P<giphyid>[a-zA-Z0-9.-/%]+)')        
 
 
 class Hashtag(markdown.inlinepatterns.Pattern):

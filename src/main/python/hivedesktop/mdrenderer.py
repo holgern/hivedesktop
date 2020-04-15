@@ -144,10 +144,11 @@ class MDRenderer(object):
         return html
 
     def _add_markdown_tag(self, contents):
-        contents = contents.replace('<div class=\\"text-justify\\">', '<div class="text-justify" markdown="block">')
-        contents = contents.replace('<div class=\\"pull-left\\">', '<div class="pull-left" markdown="block">')
-        contents = contents.replace('<div class=\\"pull-right\\">', '<div class="pull-right" markdown="block">')
-        contents = contents.replace('<div class=\\"phishy\\">', '<div class="phishy" markdown="block">')
+        contents = contents.replace('<div class=\\"text-justify\\">', '<div class="text-justify" markdown="block" name="justifiy">')
+        contents = contents.replace('<div class=\\"pull-left\\">', '<div class="pull-left" markdown="block" name="left">')
+        contents = contents.replace('<div class=\\"pull-right\\">', '<div class="pull-right" markdown="block" name="right">')
+        contents = contents.replace('<div class=\\"phishy\\">', '<div class="phishy" markdown="block" name="phishy>')
+        contents = contents.replace("<center>", '<center markdown="block" name="center">')
         contents = contents.replace("<H1>", '<H1 markdown="block">')
         contents = contents.replace("<H2>", '<H2 markdown="block">')
         contents = contents.replace("<H3>", '<H3 markdown="block">')
@@ -176,19 +177,19 @@ class MDRenderer(object):
 
 def main():
     md = MDRenderer(Path.joinpath(Path.cwd(), 'themes'))
-    md_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test01.md')
-    md2_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test01_1.md')
-    html_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test01.html')
-    
-    with open(md_file1, 'r', encoding='utf-8') as f:
-        contents = f.read()
-    with open(md2_file1, 'w+', encoding='utf-8') as f:
-        f.write(md._add_markdown_tag(contents))     
-    
-    print(md_file1)
-    
-    with open(html_file1, 'w+', encoding='utf-8') as f:
-        f.write(md.render_path(md_file1)) 
+    for index in range(1, 4):
+        md_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test0%d.md' % index)
+        html_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test0%d.html' % index)
+        
+        with open(md_file1, 'r', encoding='utf-8') as f:
+            contents = f.read()
+        #with open(md2_file1, 'w+', encoding='utf-8') as f:
+        #    f.write(md._add_markdown_tag(contents))     
+        
+        print(md_file1)
+        
+        with open(html_file1, 'w+', encoding='utf-8') as f:
+            f.write(md.render_path(md_file1)) 
 
 
 if __name__ == '__main__':
