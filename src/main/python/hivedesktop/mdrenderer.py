@@ -177,7 +177,7 @@ class MDRenderer(object):
 
 def main():
     md = MDRenderer(Path.joinpath(Path.cwd(), 'themes'))
-    for index in range(1, 4):
+    for index in range(1, 3):
         md_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test0%d.md' % index)
         html_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test0%d.html' % index)
         
