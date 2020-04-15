@@ -17,7 +17,7 @@ class CleanCommand(setuptools.Command):
         pass
 
     def run(self):
-        os.system('git clean -xdfn ./src/main')
+        os.system('git clean -xdf ./src/main')
 
 
 PY_SRC_PATH = "src/main/python"
