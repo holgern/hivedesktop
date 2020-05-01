@@ -108,3 +108,4 @@ venv.bak/
 *.wpu
 secret.json
 *.gpg
+/md_tests

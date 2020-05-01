@@ -24,6 +24,8 @@ import pymdownx.striphtml
 import jinja2
 from hivedesktop.mdx_video import VideoExtension
 from hivedesktop.mdx_url import UrlExtension
+from hivedesktop.mdx_dash import DashExtension
+from hivedesktop.mdx_md_in_html import MarkdownInHtmlExtension
 
 TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -121,7 +123,8 @@ class MDRenderer(object):
             #'footnotes',
             #'md_in_html',
             #'fenced_code',
-            #'smarty',
+            #'markdown.smarty',
+            DashExtension(),
             'markdown.extensions.nl2br',
             'markdown.extensions.codehilite',
             'pymdownx.extra',
@@ -144,10 +147,17 @@ class MDRenderer(object):
         return html
 
     def _add_markdown_tag(self, contents):
+        contents = "![]()\n" + contents
         contents = contents.replace('<div class=\\"text-justify\\">', '<div class="text-justify" markdown="block" name="justifiy">')
-        contents = contents.replace('<div class=\\"pull-left\\">', '<div class="pull-left" markdown="block" name="left">')
-        contents = contents.replace('<div class=\\"pull-right\\">', '<div class="pull-right" markdown="block" name="right">')
+        contents = contents.replace('<div class=\\"pull-left\\">', '<div class="pull-left" markdown="block" name="pull-left">')
+        contents = contents.replace('<div class=\\"pull-right\\">', '<div class="pull-right" markdown="block" name="pull-right">')
         contents = contents.replace('<div class=\\"phishy\\">', '<div class="phishy" markdown="block" name="phishy>')
+        
+        contents = contents.replace('<div class="text-justify">', '<div class="text-justify" markdown="block" name="justifiy">')
+        contents = contents.replace('<div class="pull-left">', '<div class="pull-left" markdown="block" name="pull-left">')
+        contents = contents.replace('<div class="pull-right">', '<div class="pull-right" markdown="block" name="pull-right">')
+        contents = contents.replace('<div class="phishy">', '<div class="phishy" markdown="block" name="phishy>')
+        
         contents = contents.replace("<center>", '<center markdown="block" name="center">')
         contents = contents.replace("<H1>", '<H1 markdown="block">')
         contents = contents.replace("<H2>", '<H2 markdown="block">')
@@ -177,16 +187,21 @@ class MDRenderer(object):
 
 def main():
     md = MDRenderer(Path.joinpath(Path.cwd(), 'themes'))
-    for index in range(1, 3):
-        md_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test0%d.md' % index)
-        html_file1 = Path.joinpath(Path.cwd(), '../../../../md_tests/test0%d.html' % index)
+    md_tests_path = Path.joinpath(Path.cwd(), '../../../../md_tests/')
+    print(md_tests_path)
+    for index in range(1, 10):
+        if index < 10:
+            md_file1 = Path.joinpath(md_tests_path, 'test0%d.md' % index)
+            html_file1 = Path.joinpath(md_tests_path, 'test0%d.html' % index)
+        else:
+            md_file1 = Path.joinpath(md_tests_path, 'test%d.md' % index)
+            html_file1 = Path.joinpath(md_tests_path, 'test%d.html' % index)
+            
         
         with open(md_file1, 'r', encoding='utf-8') as f:
             contents = f.read()
         #with open(md2_file1, 'w+', encoding='utf-8') as f:
         #    f.write(md._add_markdown_tag(contents))     
-        
-        print(md_file1)
         
         with open(html_file1, 'w+', encoding='utf-8') as f:
             f.write(md.render_path(md_file1)) 

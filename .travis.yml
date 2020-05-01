@@ -31,14 +31,14 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew upgrade python; fi
   - which python3; python3 --version
   - gem install fpm
-  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip install --upgrade pip; fi
+  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip3 install --upgrade pip; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install --upgrade pip; fi
-  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip install --upgrade wheel; fi
+  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip3 install --upgrade wheel; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install --upgrade wheel; fi
-  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip install --upgrade setuptools; fi
+  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip3 install --upgrade setuptools; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install --upgrade setuptools; fi
-  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip install fbs PyQt5==5.14.2 PyQtWebEngine==5.14 PyInstaller==3.4 beem cryptography pycryptodome  python-dateutil markdown Pygments jinja2 mdx_smartypants dataset deepdish markupsafe pymdown-extensions; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install fbs PyQt5==5.14.2 PyQtWebEngine==5.14 PyInstaller==3.4 beem cryptography pycryptodome  python-dateutil markdown Pygments jinja2 mdx_smartypants dataset deepdish markupsafe pymdown-extensions; fi
+  - if [[ "$BUILD_LINUX" == "yes" ]]; then  pip3 install --upgrade -r requirements/base.txt; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip3 install --upgrade -r requirements/base.txt; fi
 
 script:
  - fbs freeze

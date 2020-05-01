@@ -1,10 +1,10 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext, cached_property
 from PyQt5.QtCore import Qt, QSettings, QSize, QCoreApplication, QTimer, QRunnable, pyqtSlot, QThreadPool, \
-     QStandardPaths
+     QStandardPaths, QFile, QTextStream, QPoint, QEvent
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QMenu, \
      QSystemTrayIcon, QDialog, QMainWindow, QGridLayout, QCheckBox, QSizePolicy, QSpacerItem, \
-     QLineEdit, QTabWidget, QSplashScreen, QMessageBox, QAction, QListWidgetItem
+     QLineEdit, QTabWidget, QSplashScreen, QMessageBox, QAction, QListWidgetItem, QTreeWidgetItem, QTableWidgetItem
 from hivedesktop.ui_mainwindow import Ui_MainWindow
 from hivedesktop import hivedesktop_rc
 from hivedesktop import VERSION
@@ -16,6 +16,8 @@ from beem.amount import Amount
 from beem.rc import RC
 from beem.blockchain import Blockchain
 from beem.nodelist import NodeList
+from beem.instance import set_shared_blockchain_instance
+from beem.vote import Vote
 from beem.utils import addTzInfo, resolve_authorperm, construct_authorperm, derive_permlink, formatTimeString, formatTimedelta
 from datetime import datetime, timedelta
 from dateutil import tz
@@ -34,12 +36,19 @@ from hivedesktop import widgets
 from hivedesktop.mdrenderer import MDRenderer
 from hivedesktop import helpers
 from hivedesktop import database
+from hivedesktop import database_blocks
+import qdarkstyle
+import qdarkgraystyle
+import breeze_resources
 
 ORGANIZATION_NAME = 'holger80'
 APPLICATION_NAME = 'Hive Desktop'
 SETTINGS_TRAY = 'settings/tray'
 SETTINGS_HIST_INFO = 'settings/hist_info'
 SETTINGS_ACCOUNT = 'settings/account'
+SETTINGS_SIZE = 'settings/size'
+SETTINGS_POS = 'settings/pos'
+SETTINGS_STYLE = 'settings/style'
 
 # Setup logging
 level = logging.WARNING
@@ -86,8 +95,27 @@ class Worker(QRunnable):
 
 class AppContext(ApplicationContext):
     def run(self):
-        stylesheet = self.get_resource('styles.qss')
-        self.app.setStyleSheet(open(stylesheet).read())
+        settings = QSettings()
+        style = settings.value(SETTINGS_STYLE, "default", type=str)
+        if style == "dark":
+            stylesheet = QFile(":/dark.qss")
+            
+            stylesheet.open(QFile.ReadOnly | QFile.Text)
+            stream = QTextStream(stylesheet)
+            self.app.setStyleSheet(stream.readAll()) 
+        elif style == "light":
+            stylesheet = QFile(":/light.qss")
+            
+            stylesheet.open(QFile.ReadOnly | QFile.Text)
+            stream = QTextStream(stylesheet)
+            self.app.setStyleSheet(stream.readAll())        
+        elif style == "dark2":
+            self.app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+        elif style == "darkgray":
+            self.app.setStyleSheet(qdarkgraystyle.load_stylesheet())
+        else:
+            stylesheet = self.get_resource('styles.qss')
+            self.app.setStyleSheet(open(stylesheet).read())        
         self.window.show()
         return self.app.exec_()
     @cached_property
@@ -141,6 +169,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         self.cache_path = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
         self.db_type = "shelve"
+        self.db_type = "sqlite"
         self.feed = []
         self.post = None
         # Get settings
@@ -150,11 +179,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         check_state = settings.value(SETTINGS_TRAY, True, type=bool)
         hist_info_check_state = settings.value(SETTINGS_HIST_INFO, True, type=bool)
         account_state = settings.value(SETTINGS_ACCOUNT, "", type=str)
+        self.resize(settings.value(SETTINGS_SIZE, QSize(1053, 800)))
+        self.move(settings.value(SETTINGS_POS, QPoint(50, 50)))
+        
+        #self.accountHistTableWidget.setColumnCount(5)
+        #self.accountHistTableWidget.setHorizontalHeaderLabels(["type", "1", "2", "3", "timestamp"])
+        
+        self.update_account_refreshtime = 5000
+        
         # Set state
         self.accountHistNotificationCheckBox.setChecked(hist_info_check_state)
         self.autoRefreshCheckBox.setChecked(check_state)
         if check_state:
-            self.timer.start(5000)
+            self.timer.start(self.update_account_refreshtime)
             self.timer2.start(15000)
             self.timer3.start(60000)
         self.accountLineEdit.setText(account_state)
@@ -185,6 +222,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tray = QSystemTrayIcon(QIcon(':/icons/icon.ico'))
         
         self.tray.setContextMenu(menu)
+        self.tray.activated.connect(self.trayAction)
         
         self.tray.setToolTip("Hive Desktop!")
         self.tray.setObjectName("Hive Desktop")
@@ -196,13 +234,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         splash.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         splash.setEnabled(False)
         
-        splash.show()
-        splash.showMessage("<h1><font color='green'>starting...</font></h1>", Qt.AlignTop | Qt.AlignCenter, Qt.black)        
+        #splash.show()
+        #splash.showMessage("<h1><font color='green'>starting...</font></h1>", Qt.AlignTop | Qt.AlignCenter, Qt.black)        
         
         account = account_state
         nodelist = NodeList()
         nodelist.update_nodes()
         self.stm = Steem(node=nodelist.get_nodes(hive=True))
+        set_shared_blockchain_instance(self.stm)
         if account != "":
             try:
                 self.hist_account = Account(account, steem_instance=self.stm)
@@ -210,35 +249,67 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.hist_account = None
         else:
             self.hist_account = None
+            
+        self.refreshPushButton.clicked.connect(self.refresh_account)
+        self.refreshPushButton.clicked.connect(self.update_account_hist_thread)
+        self.accountLineEdit.editingFinished.connect(self.update_account_info)        
         if self.hasFocus is not None:
             self.init_new_account()
-        # self.button.clicked.connect(lambda: self.text.setText(_get_quote(self.hist_account, self.stm)))
-        self.refreshPushButton.clicked.connect(self.refresh_account_thread)
-        self.refreshPushButton.clicked.connect(self.update_account_hist_thread)
-        self.accountLineEdit.editingFinished.connect(self.update_account_info)
+            self.init_new_blocks()
         splash.deleteLater()
-        self.tray.showMessage("Ready", "Account history loaded!")
 
     def triggeredPreview(self):
         self.authorLabel.setText(self.post["author"])
         self.titleLabel.setText(self.post["title"])
+        self.auhorpermLineEdit.setText(construct_authorperm(self.post["author"], self.post["permlink"]))
         self.thread.start()
 
     @pyqtSlot(str)
     def cbMDThread(self, html):
         self.webview.setHtml(html)
 
+    @pyqtSlot(QSystemTrayIcon.ActivationReason)
+    def trayAction(self, reason):
+        if reason == QSystemTrayIcon.Trigger:
+            if self.isHidden():
+                self.showNormal()
+            else:
+                self.hide()
+
     def closeEvent(self, event):
         if self.tray.isVisible():
-            QMessageBox.information(self, "Hive Desktop",
+            #QMessageBox.information(self, "Hive Desktop",
+            #        "The program will keep running in the system tray. To "
+            #        "terminate the program, choose <b>Quit</b> in the "
+            #        "context menu of the system tray entry.")
+            self.tray.showMessage("Hive Desktop",
                     "The program will keep running in the system tray. To "
-                    "terminate the program, choose <b>Quit</b> in the "
-                    "context menu of the system tray entry.")
+                    "terminate the program, choose Quit in the "
+                    "context menu of the system tray entry.")           
             self.hide()
             event.ignore()
 
+    def hide(self):
+        self.update_account_refreshtime = 60000
+        self.timer.start(self.update_account_refreshtime)
+        QMainWindow.hide(self)
+        
+
+    def showNormal(self):
+        self.update_account_refreshtime = 5000
+        self.timer.start(self.update_account_refreshtime)
+        QMainWindow.showNormal(self)
+
+    def showMaximized(self):
+        self.update_account_refreshtime = 5000
+        self.timer.start(self.update_account_refreshtime)
+        QMainWindow.showMaximized(self)
+
     def closeApp(self):
-        self.store_account_hist()
+        settings = QSettings()
+        settings.setValue(SETTINGS_SIZE, self.size())
+        settings.setValue(SETTINGS_POS, self.pos())
+        settings.sync()
         sys.exit()
 
     def about(self):
@@ -253,7 +324,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         settings.setValue(SETTINGS_HIST_INFO, self.accountHistNotificationCheckBox.isChecked())
         settings.setValue(SETTINGS_TRAY, self.autoRefreshCheckBox.isChecked())
         if self.autoRefreshCheckBox.isChecked():
-            self.timer.start(5000)
+            self.timer.start(self.update_account_refreshtime)
             self.timer2.start(15000)
             self.timer3.start(60000)
         else:
@@ -270,7 +341,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def update_account_info(self):
         if self.hist_account is None or self.hist_account["name"] != self.accountLineEdit.text():
-            self.store_account_hist()
             try:
                 self.hist_account = Account(self.accountLineEdit.text(), steem_instance=self.stm)
             except:
@@ -278,13 +348,45 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.init_new_account()
 
     def init_new_account(self):
+        self.refresh_account()
+        self.update_account_feed()
         if self.hist_account is not None:
             self.db = database.Database(self.db_type, self.cache_path, self.hist_account["name"])
-        self.refresh_account()
+            self.loadingProgressBar.setMaximum(self.db.get_account().virtual_op_count())
+            self.iah_thread = threads.IAHThread(self, self.db)
+            self.timer.stop()
+            self.timer2.stop()
+            self.refreshPushButton.setEnabled(False)
+            self.accountLineEdit.setEnabled(False)            
+            self.iah_thread.start()
+        else:
+            self.init_account_hist()
+            self.update_account_hist()
+
+    def init_new_blocks(self):
+        blockchain = Blockchain()
+        self.block_db = database_blocks.DatabaseBlocks(self.db_type, self.cache_path)
+        self.loadingBlocksProgressBar.setMaximum(self.block_db.block_history)
+        self.blocks_thread = threads.BlocksThread(self, self.block_db, blockchain)
+        self.blocks_thread.start()
+
+    @pyqtSlot(str)
+    def cIAHThread(self, dummy):
         self.init_account_hist()
         self.update_account_hist()
-        self.update_account_feed()
-        self.store_account_hist()
+        self.refreshPushButton.setEnabled(True)
+        self.accountLineEdit.setEnabled(True)
+        self.tray.showMessage("Ready", "Account history loaded!")     
+        self.timer.start(self.update_account_refreshtime)
+        self.timer2.start(15000)
+
+    @pyqtSlot(str)
+    def cBlocksThread(self, dummy):
+        self.init_blocks()
+        self.update_blocks()
+           
+        #self.timer.start(self.update_account_refreshtime)
+        #self.timer2.start(15000)
 
     def refresh_account_thread(self):
         worker = Worker(self.refresh_account)
@@ -333,72 +435,57 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except:
             rc_manabar = None
 
-    def store_account_hist(self):
-        if self.hist_account is None:
-            return
-        self.db.store_account_hist(self.account_history, self.append_hist_info["trx_ids"])
+    @pyqtSlot(int)
+    def set_loading_progress(self, val):
+        with self.redrawLock:
+            self.loadingProgressBar.setValue(val)
+
+    @pyqtSlot(int)
+    def set_loading_blocks_progress(self, val):
+        with self.redrawLock:
+            self.loadingBlocksProgressBar.setValue(val)
+
+    def init_blocks(self):
+        self.blockCountLabel.setText("%d entries" % self.block_db.get_block_count())
 
     def init_account_hist(self):
         if self.hist_account is None:
             return
-        b = Blockchain(steem_instance=self.stm)
-        latest_block_num = b.get_current_block_num()
-        start_block_num = latest_block_num - (20 * 60 * 24)
-        self.account_history = []
-        self.account_hist_info = {"start_block": 0, "trx_ids": []}
-        self.append_hist_info = {"start_block": 0, "trx_ids": []}
+        self.account_hist_info = {"start_block": 0}
+        self.append_hist_info = {"start_block": 0}
 
-        if self.db.has_account_hist():
-            self.account_history, trx_ids = self.db.load_account_hist()
-            if self.account_history[0]["block"] <= start_block_num:
-                self.append_hist_info["start_block"] = self.account_history[-1]["block"]
-                self.append_hist_info["trx_ids"] = trx_ids
-                return
-        
+        #if not self.db.has_account_hist():
+        #    ops = self.db.get_acc_hist()
+        #    self.db.store_account_hist(ops)
+        #else:
+        #    start_op = self.db.get_last_op()
+        #    ops = self.db.read_missing_account_history_data(start_op)
+        #    self.db.store_account_hist(ops)
+        self.accountHistoryLabel.setText("%d entries" % self.db.get_count())
+        self.accountHistTableWidget.clear()
 
-        self.lastUpvotesListWidget.clear()
-        self.lastCurationListWidget.clear()
-        self.lastAuthorListWidget.clear()
-        self.accountHistListWidget.clear()
-        start_block = 0
-        trx_ids = []
-        for op in self.hist_account.history(start=start_block_num):
-            if op["block"] < start_block:
-                continue
-            elif op["block"] == start_block:
-                if op["trx_id"] in trx_ids:
-                    continue
-                else:
-                    trx_ids.append(op["trx_id"])
-            else:
-                trx_ids = [op["trx_id"]]
-            start_block = op["block"]
-            self.account_history.append(op)
-        self.append_hist_info["start_block"] = start_block
-        self.append_hist_info["trx_ids"] = trx_ids
-        
-        
+    def append_blocks(self):
+        start_op = self.block_db.get_last_op()
+        data = self.block_db.read_missing_block_data(start_op)
+        # print("finished")
+        if len(data) > 0:
+            # print(op["timestamp"])
+            self.block_db.append_blocks(data)
+            self.blockCountLabel.setText("%d entries" % self.block_db.get_block_count())        
+
     def append_account_hist(self):
         if self.hist_account is None:
-            return        
-        start_block = self.append_hist_info["start_block"]
-        trx_ids = self.append_hist_info["trx_ids"]
-        for op in self.hist_account.history(start=start_block - 20, use_block_num=True):
-            if op["block"] < start_block:
-                continue
-            elif op["block"] == start_block:
-                if op["trx_id"] in trx_ids:
-                    continue
-                else:
-                    trx_ids.append(op["trx_id"])
-            else:
-                trx_ids = [op["trx_id"]]
-
-            start_block = op["block"]
-            # print("Write %d" % op["index"])
-            self.account_history.append(op)        
-        self.append_hist_info["start_block"] = start_block
-        self.append_hist_info["trx_ids"] = trx_ids
+            return
+        
+        # print("loading db")
+        
+        start_op = self.db.get_last_op()
+        data = self.db.read_missing_account_history_data(start_op)
+        # print("finished")
+        if len(data) > 0:
+            # print(op["timestamp"])
+            self.db.append_account_hist(data)
+            self.accountHistoryLabel.setText("%d entries" % self.db.get_count())
 
     def update_account_hist_thread(self):
         worker = Worker(self.update_account_hist)
@@ -421,11 +508,71 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.post = self.feed[row]
         with self.updateLock:
             self.triggeredPreview()
+        replies = Comment(self.post).get_all_replies()
+        is_shown = [0] * len(replies)
+        max_depth = 0
+        for i in range(len(replies)):
+            if replies[i].depth > max_depth:
+                max_depth = replies[i].depth
+        self.commentsTreeWidget.clear()
+        
+        def create_item(reply):
+            item = QTreeWidgetItem()
+            item.setText(0, reply["author"])
+            item.setText(1, reply["body"])
+            item.setToolTip(1, reply["body"])
+            return item
+
+      
+        for i in range(len(replies)):
+            if is_shown[i] == 1:
+                continue
+            reply = replies[i]
+            if reply.depth == 1:
+                is_shown[i] = 1
+                item = create_item(reply)
+                
+                for j in range(len(replies)):
+                    rr = replies[j]
+                    if is_shown[j] == 1:
+                        continue
+                    if rr.depth == 2:
+                        is_shown[j] = 1
+                        if rr.parent_author == reply["author"] and rr.parent_permlink == reply["permlink"]:
+                            rr_item = create_item(rr)
+                            if max_depth >= 3:
+                                for k in range(len(replies)):
+                                    rrr = replies[k]
+                                    if is_shown[k] == 1:
+                                        continue
+                                    if rrr.depth == 3:
+                                        is_shown[k] = 1
+                                        if rrr.parent_author == rr["author"] and rrr.parent_permlink == rr["permlink"]:
+                                            rrr_item = create_item(rrr)
+                                            if max_depth >= 4:
+                                                for l in range(len(replies)):
+                                                    rrrr = replies[l]
+                                                    if is_shown[l] == 1:
+                                                        continue
+                                                    if rrrr.depth == 4:
+                                                        is_shown[l] = 1
+                                                        if rrrr.parent_author == rrr["author"] and rrrr.parent_permlink == rrr["permlink"]:
+                                                            rrrr_item = create_item(rrrr)
+                                                            rrr_item.addChild(rrrr_item)
+                                        
+                                        rr_item.addChild(rrr_item)
+                            item.addChild(rr_item)
+                
+                self.commentsTreeWidget.addTopLevelItem(item)
 
     def update_account_feed(self):
         if self.hist_account is None:
             return
-        updated_feed = self.hist_account.get_account_posts()
+        try:
+            updated_feed = self.hist_account.get_account_posts()
+        except:
+            print("could not update feed")
+            return
         if len(self.feed) == 0:
             self.feed = updated_feed
         else:
@@ -436,7 +583,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         found = True
                 if not found:
                     self.feed.insert(0, post)
-                    self.tray.showMessage(post["author"], post["title"])
+                    if (addTzInfo(datetime.utcnow()) - post["created"]).total_seconds() / 60 < 5:
+                        self.tray.showMessage(post["author"], post["title"])
         with self.updateLock:
             if self.post is None:
                 self.post = self.feed[0]
@@ -451,7 +599,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 post_item.setToolTip(post["author"])
                 self.feedListWidget.insertItem(0, post_item)   
             self.feedListWidget.currentRowChanged.connect(self.change_displayed_post, Qt.QueuedConnection)
-            
+
+    def update_blocks(self):
+        return
 
     def update_account_hist(self):
         if self.hist_account is None:
@@ -468,83 +618,109 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         start_block = self.account_hist_info["start_block"]
         if start_block == 0:
             first_call = True
+            b = Blockchain()
+            start_block = b.get_current_block_num() - 20 * 60 * 24 * 7
+            self.account_hist_info["start_block"] = start_block
         else:
             first_call = False
-        trx_ids = self.account_hist_info["trx_ids"]
+
+        ops = self.db.load_account_hist(start_block)
      
-        for op in self.account_history:
+        for op in ops:
             if op["block"] < start_block:
                 # last_block = op["block"]
                 continue
-            elif op["block"] == start_block:
-                if op["trx_id"] in trx_ids:
-                    continue
-                else:
-                    trx_ids.append(op["trx_id"])
-            else:
-                trx_ids = [op["trx_id"]]
+
             start_block = op["block"]
             new_op_found = True
-            op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - formatTimeString(op["timestamp"]))
-            op_local_time = formatTimeString(op["timestamp"]).astimezone(tz.tzlocal())
+            tray_item = None
+            op_timedelta = formatTimedelta(addTzInfo(datetime.utcnow()) - addTzInfo(op["timestamp"]))
+            op_local_time = addTzInfo(op["timestamp"]).astimezone(tz.tzlocal())
             # print("Read %d" % op["index"])
+            self.accountHistTableWidget.insertRow(0)
+            self.accountHistTableWidget.setItem(0, 4, QTableWidgetItem(str(op_local_time)))
             if op["type"] == "vote":
+                
+                
                 if op["voter"] == self.hist_account["name"]:
-                    continue
-                if op["weight"] >= 0:
+                    self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem("Vote"))
+                    self.accountHistTableWidget.setItem(0, 1, QTableWidgetItem(op["author"]))
                     
-                    self.lastUpvotesListWidget.insertItem(0,"%s - %s (%.2f %%) upvote %s" % (op_timedelta, op["voter"], op["weight"] / 100, op["permlink"]))
-                    hist_item = "%s - %s - %s (%.2f %%) upvote %s" % (op_local_time, op["type"], op["voter"], op["weight"] / 100, op["permlink"])
-                    tray_item = "%s - %s (%.2f %%) upvote %s" % (op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                elif op["weight"] >= 0:
+                    self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem("Vote Post"))
+                    self.accountHistTableWidget.setItem(0, 1, QTableWidgetItem(op["voter"]))
+                    tray_item = "%s - %s (%.2f %%) vote %s" % (op["type"], op["voter"], op["weight"] / 100, op["permlink"])
                 else:
-                    hist_item = "%s - %s - %s (%.2f %%) downvote %s" % (op_local_time, op["type"], op["voter"], op["weight"] / 100, op["permlink"])
+                    self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem("Dowvote Post"))
+                    self.accountHistTableWidget.setItem(0, 1, QTableWidgetItem(op["voter"]))
+                    # hist_item.setToolTip(0, op["permlink"])
                     tray_item = "%s - %s (%.2f %%) downvote %s" % (op["type"], op["voter"], op["weight"] / 100, op["permlink"])
-                    
-                self.accountHistListWidget.insertItem(0, hist_item)
+                
+                
+                self.accountHistTableWidget.setItem(0, 2, QTableWidgetItem("%.2f %%" % (op["weight"] / 100)))
+                
             elif op["type"] == "curation_reward":
+                self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(op["type"]))
+                
                 curation_reward = self.stm.vests_to_sp(Amount(op["reward"], steem_instance=self.stm))
-                self.lastCurationListWidget.insertItem(0, "%s - %.3f HP for %s" % (op_timedelta, curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"])))
+                self.accountHistTableWidget.setItem(0, 1, QTableWidgetItem("%.3f HP" % curation_reward))
+                self.accountHistTableWidget.setItem(0, 2, QTableWidgetItem(construct_authorperm(op["comment_author"], op["comment_permlink"])))
                 hist_item = "%s - %s - %.3f HP for %s" % (op_local_time, op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"]))
                 tray_item = "%s - %.3f HP for %s" % (op["type"], curation_reward, construct_authorperm(op["comment_author"], op["comment_permlink"]))
-                self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "author_reward":
+                self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(op["type"]))
                 sbd_payout = (Amount(op["sbd_payout"], steem_instance=self.stm))
                 steem_payout = (Amount(op["steem_payout"], steem_instance=self.stm))
                 sp_payout = self.stm.vests_to_sp(Amount(op["vesting_payout"], steem_instance=self.stm))
-                self.lastAuthorListWidget.insertItem(0, "%s - %s %s %.3f HP for %s" % (op_timedelta, str(sbd_payout), str(steem_payout), sp_payout, op["permlink"]))
+                
                 hist_item = "%s - %s - %s %s %.3f SP for %s" % (op_local_time, op["type"], str(sbd_payout), str(steem_payout), sp_payout, op["permlink"])
                 tray_item = "%s - %s %s %.3f SP for %s" % (op["type"], str(sbd_payout), str(steem_payout), sp_payout, op["permlink"])
-                self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "custom_json":
+                self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(op["type"]))
+                self.accountHistTableWidget.setItem(0, 1, QTableWidgetItem(op["json_id"]))
+                json_data = QTableWidgetItem(op["json"])
+                json_data.setToolTip(op["json"])
+                self.accountHistTableWidget.setItem(0, 2, json_data)
                 hist_item = "%s - %s - %s" % (op_local_time, op["type"], op["id"])
-                tray_item = "%s - %s" % (op["type"], op["id"])
-                self.accountHistListWidget.insertItem(0, hist_item)
+                tray_item = "%s - %s" % (op["type"], op["json_id"])
             elif op["type"] == "transfer":
+                self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(op["type"]))
                 hist_item = "%s - %s - %s from %s" % (op_local_time, op["type"], str(Amount(op["amount"], steem_instance=self.stm)), op["from"])
                 tray_item = "%s - %s from %s" % (op["type"], str(Amount(op["amount"], steem_instance=self.stm)), op["from"])
-                self.accountHistListWidget.insertItem(0, hist_item)
             elif op["type"] == "comment":
-                comment_type = "post"
+                
+                
                 if op["parent_author"] != "":
+                    comment_type = "comment"
                     hist_item = "%s - comment on %s - %s from %s" % (op_local_time, construct_authorperm(op["parent_author"], op["parent_permlink"]), op["title"], op["author"])
                     tray_item = "comment from %s: %s on %s" % (op["author"], op["body"][:100], op["title"])
+                    self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(op["type"]))
+                    self.accountHistTableWidget.setItem(0, 1, QTableWidgetItem(op["author"]))
+                    body = QTableWidgetItem(op["body"])
+                    body.setToolTip(op["body"])
+                    self.accountHistTableWidget.setItem(0, 2, body)
                 else:
+                    comment_type = "post"
                     hist_item = "%s - post - %s from %s" % (op_local_time, op["title"], op["author"])
                     tray_item = "post from %s: %s" % (op["author"], op["title"])
-                self.accountHistListWidget.insertItem(0, hist_item)
+                self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(comment_type))
+            elif op["type"] == "producer_reward":
+                self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(op["type"]))
+                self.accountHistTableWidget.setItem(0, 1, QTableWidgetItem(" %.3f HP" % float(self.stm.vests_to_sp(Amount(op["vesting_shares"])))))
+                hist_item = "%s - %s" % (op_local_time, op["type"])
+                tray_item = "%s - %.3f HP" % (op["type"], float(self.stm.vests_to_sp(Amount(op["vesting_shares"]))))               
             else:
+                self.accountHistTableWidget.setItem(0, 0, QTableWidgetItem(op["type"]))
                 hist_item = "%s - %s" % (op_local_time, op["type"])
                 tray_item = "%s" % (op["type"])
-                self.accountHistListWidget.insertItem(0, hist_item)
             
-            if self.accountHistNotificationCheckBox.isChecked() and not first_call:
+            if self.accountHistNotificationCheckBox.isChecked() and not first_call and tray_item is not None:
                 self.tray.showMessage(self.hist_account["name"], tray_item)
 
         if new_op_found:
             self.account_hist_info["start_block"] = start_block
-            self.account_hist_info["trx_ids"] = trx_ids
             
-            for op in self.account_history:
+            for op in ops:
                 if op["type"] == "vote":
                     if op["voter"] == self.hist_account["name"]:
                         continue

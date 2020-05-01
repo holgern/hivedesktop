@@ -37,23 +37,23 @@ class VideoExtension(markdown.Extension):
 
     def extendMarkdown(self, md, md_globals):
         self.add_inline(md, 'dailymotion', Dailymotion,
-            r'([^(]|^)https?://www\.dailymotion\.com/video/(?P<dailymotionid>[a-zA-Z0-9]+)(_[\w\-]*)?')
+            r'(?<!\]\()https?://www\.dailymotion\.com/video/(?P<dailymotionid>[a-zA-Z0-9]+)(_[\w\-]*)?')
         self.add_inline(md, 'metacafe', Metacafe,
-            r'([^(]|^)http://www\.metacafe\.com/watch/(?P<metacafeid>\d+)/?(:?.+/?)')
+            r'(?<!\]\()http://www\.metacafe\.com/watch/(?P<metacafeid>\d+)/?(:?.+/?)')
         self.add_inline(md, 'vimeo', Vimeo,
-            r'([^(]|^)https?://(www.|)vimeo\.com/(?P<vimeoid>\d+)\S*')
+            r'(?<!\]\()https?://(www.|)vimeo\.com/(?P<vimeoid>\d+)\S*')
         self.add_inline(md, 'vimm', Vimm,
-            r'([^(]|^)https?://(www.|)vimm\.tv/(?P<vimmid>\d+)\S*')        
+            r'(?<!\]\()https?://(www.|)vimm\.tv/(?P<vimmid>\d+)\S*')        
         self.add_inline(md, 'twitch', Twitch,
-            r'([^(]|^)https?://(www.|)twitch\.tv/(?P<twitchid>\d+)\S*') 
+            r'(?<!\]\()https?://(www.|)twitch\.tv/(?P<twitchid>\d+)\S*') 
         self.add_inline(md, 'threespeak', ThreeSpeak,
-            r'([^(]|^)https?://(www.|)3speak\.online/watch\?\S*v=(?P<threespeakid>[a-zA-Z0-9.-/]+)')
+            r'(?<!\]\()https?://(www.|)3speak\.online/watch\?\S*v=(?P<threespeakid>[a-zA-Z0-9.-/\<]+)')
         self.add_inline(md, 'yahoo', Yahoo,
-            r'([^(]|^)http://screen\.yahoo\.com/.+/?')
+            r'(?<!\]\()http://screen\.yahoo\.com/.+/?')
         self.add_inline(md, 'youtube', Youtube,
-            r'([^(]|^)https?://www\.youtube\.com/watch\?\S*v=(?P<youtubeid>\S[^&/]+)')
+            r'(?<!\]\()https?://www\.youtube\.com/watch\?\S*v=(?P<youtubeid>\S[^&/\<]+)')
         self.add_inline(md, 'youtube_short', Youtube,
-            r'([^(]|^)https?://youtu\.be/(?P<youtubeid>\S[^?&/]+)?')
+            r'(?<!\]\()https?://youtu\.be/(?P<youtubeid>\S[^?&/\<]+)?')
 
 
 class Dailymotion(markdown.inlinepatterns.Pattern):

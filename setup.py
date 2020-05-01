@@ -61,7 +61,9 @@ setuptools.setup(
         'beem',
         'cryptography',
         'pycryptodome',
-        'python-dateutil'
+        'python-dateutil',
+        'qdarkgraystyle',
+        'qdarkstyle'
     ],
     entry_points=dict(
         console_scripts=[
