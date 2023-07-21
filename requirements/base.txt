@@ -1,7 +1,7 @@
 fbs
 PyQt5==5.14.2
 PyQtWebEngine==5.14
-PyInstaller==3.4
+PyInstaller==3.6
 markdown
 Pygments
 mdx_smartypants
